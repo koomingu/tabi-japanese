@@ -140,7 +140,7 @@
     const isCategory = !labels[type];
     $('#quick-word-entry').innerHTML = quickWords[type] ? `
       <button class="quick-word-entry" data-action="open-quick-words" data-category="${type}">
-        <span>🔖</span><div><strong>바로 쓰는 필수 단어</strong><small>인원 · 수량 · 물 · 화장실 등</small></div><b>›</b>
+        <span>🔖</span><div><strong>바로 쓰는 필수 단어</strong><small>상황별 핵심 단어를 한눈에 확인해요</small></div><b>›</b>
       </button>` : '';
     $('#phrase-list').innerHTML = isCategory && list.length
       ? `<section class="featured-section"><p class="featured-label">대표 표현 · FEATURED</p>${phraseCard(list[0]).replace('phrase-card', 'phrase-card featured-card')}</section><p class="all-phrases-label">모든 표현</p>${list.slice(1).map(phraseCard).join('')}`
