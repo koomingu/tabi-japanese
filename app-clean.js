@@ -24,7 +24,8 @@
     previousScreen: 'home',
     reviewItems: [],
     reviewIndex: 0,
-    kanaScript: 'hiragana'
+    kanaScript: 'hiragana',
+    kanaGroup: 'basic'
   };
 
   const buildKana = rows => rows.flatMap(row => row.split(' ').map(item => item.split(':')));
@@ -39,6 +40,10 @@
       'ガ:가 ギ:기 グ:구 ゲ:게 ゴ:고', 'ザ:자 ジ:지 ズ:즈 ゼ:제 ゾ:조', 'ダ:다 ヂ:지 ヅ:즈 デ:데 ド:도', 'バ:바 ビ:비 ブ:부 ベ:베 ボ:보', 'パ:파 ピ:피 プ:푸 ペ:페 ポ:포',
       'キャ:캬 キュ:큐 キョ:쿄', 'シャ:샤 シュ:슈 ショ:쇼', 'チャ:차 チュ:추 チョ:초', 'ニャ:냐 ニュ:뉴 ニョ:뇨', 'ヒャ:햐 ヒュ:휴 ヒョ:효', 'ミャ:먀 ミュ:뮤 ミョ:묘', 'リャ:랴 リュ:류 リョ:료', 'ギャ:갸 ギュ:규 ギョ:교', 'ジャ:자 ジュ:주 ジョ:조', 'ビャ:뱌 ビュ:뷰 ビョ:뵤', 'ピャ:퍄 ピュ:퓨 ピョ:표'
     ])
+  };
+  const kanaGroups = {
+    hiragana: { basic: kana.hiragana.slice(0, 46), voiced: kana.hiragana.slice(46, 71), contracted: kana.hiragana.slice(71) },
+    katakana: { basic: kana.katakana.slice(0, 46), voiced: kana.katakana.slice(46, 71), contracted: kana.katakana.slice(71) }
   };
 
   function saveState() {
@@ -293,8 +298,9 @@
   }
 
   function renderKana() {
-    const characters = kana[state.kanaScript];
+    const characters = kanaGroups[state.kanaScript][state.kanaGroup];
     $$('.kana-tabs button').forEach(button => button.classList.toggle('active', button.dataset.kana === state.kanaScript));
+    $$('.kana-groups button').forEach(button => button.classList.toggle('active', button.dataset.kanaGroup === state.kanaGroup));
     $('#kana-grid').innerHTML = characters.map(([character, pronunciation]) => `
       <button class="kana-item" data-action="speak-kana" data-character="${character}">
         <strong>${character}</strong><small>${pronunciation}</small>
@@ -332,6 +338,7 @@
     $('#review-next').addEventListener('click', () => { if (state.reviewIndex === state.reviewItems.length - 1) { record('review_complete'); navigate('home'); showToast('복습을 완료했어요!'); } else { state.reviewIndex += 1; renderReview(); } });
     $('#kana-button').addEventListener('click', () => { state.previousScreen = 'home'; renderKana(); navigate('kana', ''); });
     $$('.kana-tabs button').forEach(button => button.addEventListener('click', () => { state.kanaScript = button.dataset.kana; renderKana(); }));
+    $$('.kana-groups button').forEach(button => button.addEventListener('click', () => { state.kanaGroup = button.dataset.kanaGroup; renderKana(); }));
   }
 
   function registerServiceWorker() {
