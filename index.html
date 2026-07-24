@@ -38,6 +38,11 @@
           <div class="section-heading"><h2>최근 확인한 표현</h2><button class="text-button" id="history-button">전체 보기</button></div>
           <div class="recent-list" id="recent-list"></div>
         </section>
+        <section class="progress-section">
+          <div class="section-heading"><h2>나의 여행 준비</h2><span id="progress-label"></span></div>
+          <div class="progress-grid"><div><strong id="stat-views">0</strong><small>확인한 표현</small></div><div><strong id="stat-audio">0</strong><small>음성 듣기</small></div><div><strong id="stat-favorites">0</strong><small>저장한 표현</small></div></div>
+          <button class="review-card" id="review-button"><span>↻</span><div><strong>1분 빠른 복습</strong><small>여행 전에 핵심 표현을 다시 확인해요</small></div><b>›</b></button>
+        </section>
       </section>
 
       <section class="screen" id="list-screen">
@@ -76,6 +81,13 @@
         <button class="back-button" data-back>‹ <span>뒤로</span></button>
         <div class="list-header"><p class="eyebrow">LEARNING LOG</p><h1>최근 확인</h1><p id="history-description"></p></div>
         <div class="phrase-list" id="history-list"></div>
+      </section>
+
+      <section class="screen" id="review-screen">
+        <button class="back-button" data-back>‹ <span>홈</span></button>
+        <div class="list-header"><p class="eyebrow">QUICK REVIEW</p><h1>1분 복습</h1><p id="review-progress"></p></div>
+        <article class="review-card-panel"><p class="eyebrow">KOREAN MEANING</p><h2 id="review-korean"></h2><div class="review-answer" id="review-answer" hidden><p class="japanese" id="review-japanese"></p><p class="romaji" id="review-romaji"></p></div><button class="review-reveal" id="review-reveal">일본어 표현 보기</button><button class="review-listen" id="review-listen" hidden>▶ 일본어로 듣기</button></article>
+        <button class="review-next" id="review-next">다음 표현 <span>›</span></button>
       </section>
     </main>
     <nav class="bottom-nav"><button class="nav-item active" data-nav="home"><span>⌂</span>홈</button><button class="nav-item" data-nav="ask"><span>✦</span>AI 질문</button><button class="nav-item" data-nav="history"><span>◷</span>최근</button><button class="nav-item" data-nav="favorites"><span>♡</span>저장됨</button></nav>
