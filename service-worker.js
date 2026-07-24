@@ -1,4 +1,4 @@
-const CACHE = 'tabi-mvp-v1';
+const CACHE = 'tabi-mvp-v2';
 const APP_FILES = ['./', './index.html', './styles.css', './mvp.css', './app.js', './manifest.webmanifest'];
 
 self.addEventListener('install', event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(APP_FILES))));
