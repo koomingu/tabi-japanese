@@ -18,16 +18,17 @@
       <p class="offline-note" id="offline-note" hidden>오프라인 모드 · 저장된 표현을 이용할 수 있어요</p>
 
       <section class="screen active" id="home-screen">
-        <div class="hero">
-          <p class="eyebrow">JAPAN TRAVEL PHRASES</p>
-          <h1>필요한 말,<br /><em>10초 안에.</em></h1>
-          <p>여행 중 바로 꺼내 쓰는 일본어 회화</p>
+        <div class="home-search-only">
+          <label class="search-box" for="global-search">
+            <span>⌕</span><input id="global-search" autocomplete="off" placeholder="무엇을 말하고 싶으세요?" />
+          </label>
+          <div class="search-suggestions" id="search-suggestions"></div>
+          <div id="search-results" class="search-results"></div>
         </div>
-        <label class="search-box" for="global-search">
-          <span>⌕</span><input id="global-search" autocomplete="off" placeholder="무엇을 말하고 싶으세요?" />
-        </label>
-        <div class="search-suggestions" id="search-suggestions"></div>
-        <div id="search-results" class="search-results"></div>
+      </section>
+
+      <section class="screen" id="browse-screen">
+        <div class="list-header"><p class="eyebrow">EXPLORE TABI</p><h1>여행 회화</h1><p>상황에 맞는 표현을 빠르게 찾아보세요.</p></div>
         <div class="section-heading"><h2>지금 필요한 상황</h2><span>6가지</span></div>
         <div class="category-grid" id="category-grid"></div>
         <button class="quick-card" id="popular-button">
@@ -101,7 +102,7 @@
         <div class="kana-grid" id="kana-grid"></div>
       </section>
     </main>
-    <nav class="bottom-nav"><button class="nav-item active" data-nav="home"><span>⌂</span>홈</button><button class="nav-item" data-nav="ask"><span>✦</span>AI 질문</button><button class="nav-item" data-nav="history"><span>◷</span>최근</button><button class="nav-item" data-nav="favorites"><span>♡</span>저장됨</button></nav>
+    <nav class="bottom-nav"><button class="nav-item active" data-nav="home"><span>⌂</span>홈</button><button class="nav-item" data-nav="browse"><span>▦</span>둘러보기</button><button class="nav-item" data-nav="ask"><span>✦</span>AI 질문</button><button class="nav-item" data-nav="history"><span>◷</span>최근</button><button class="nav-item" data-nav="favorites"><span>♡</span>저장됨</button></nav>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="runtime-config.js"></script>
     <script>window.TABI_DATA_ONLY = true;</script>

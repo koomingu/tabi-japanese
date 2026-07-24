@@ -70,7 +70,7 @@
     $$('.screen').forEach(element => element.classList.toggle('active', element.id === `${screen}-screen`));
     $('.topbar').hidden = screen !== 'home';
     $$('.nav-item').forEach(button => button.classList.toggle('active', button.dataset.nav === activeNav));
-    if (screen === 'home') renderHome();
+    if (screen === 'browse') renderBrowse();
     if (screen === 'history') renderHistory();
     window.scrollTo(0, 0);
   }
@@ -106,7 +106,7 @@
       </button>`).join('');
   }
 
-  function renderHome() {
+  function renderBrowse() {
     renderRecent();
     const events = readList('events');
     const audioCount = events.filter(event => event.name === 'audio_play').length;
@@ -336,7 +336,7 @@
     $('#review-reveal').addEventListener('click', () => { $('#review-answer').hidden = false; $('#review-listen').hidden = false; $('#review-reveal').hidden = true; record('review_reveal'); });
     $('#review-listen').addEventListener('click', () => speak(state.reviewItems[state.reviewIndex].jp));
     $('#review-next').addEventListener('click', () => { if (state.reviewIndex === state.reviewItems.length - 1) { record('review_complete'); navigate('home'); showToast('복습을 완료했어요!'); } else { state.reviewIndex += 1; renderReview(); } });
-    $('#kana-button').addEventListener('click', () => { state.previousScreen = 'home'; renderKana(); navigate('kana', ''); });
+    $('#kana-button').addEventListener('click', () => { state.previousScreen = 'browse'; renderKana(); navigate('kana', ''); });
     $$('.kana-tabs button').forEach(button => button.addEventListener('click', () => { state.kanaScript = button.dataset.kana; renderKana(); }));
     $$('.kana-groups button').forEach(button => button.addEventListener('click', () => { state.kanaGroup = button.dataset.kanaGroup; renderKana(); }));
   }
