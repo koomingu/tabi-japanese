@@ -3,6 +3,7 @@
 
   const phrases = window.TABI_PHRASES;
   const categoryMeta = window.TABI_META;
+  const quickWords = window.TABI_QUICK_WORDS || {};
   const $ = selector => document.querySelector(selector);
   const $$ = selector => [...document.querySelectorAll(selector)];
   const storageKey = name => `tabi-${name}`;
@@ -137,11 +138,30 @@
     $('#list-title').textContent = title;
     $('#list-description').textContent = list.length ? `${list.length}개의 표현을 준비했어요.` : '아직 저장한 표현이 없어요.';
     const isCategory = !labels[type];
+    $('#quick-word-entry').innerHTML = quickWords[type] ? `
+      <button class="quick-word-entry" data-action="open-quick-words" data-category="${type}">
+        <span>🔖</span><div><strong>바로 쓰는 필수 단어</strong><small>인원 · 수량 · 물 · 화장실 등</small></div><b>›</b>
+      </button>` : '';
     $('#phrase-list').innerHTML = isCategory && list.length
       ? `<section class="featured-section"><p class="featured-label">대표 표현 · FEATURED</p>${phraseCard(list[0]).replace('phrase-card', 'phrase-card featured-card')}</section><p class="all-phrases-label">모든 표현</p>${list.slice(1).map(phraseCard).join('')}`
       : list.map(phraseCard).join('');
     record('category_open', { type });
     navigate('list', type === 'favorites' ? 'favorites' : '');
+  }
+
+  function openQuickWords(category) {
+    const words = quickWords[category];
+    if (!words) return;
+    state.previousScreen = 'list';
+    $('#quick-words-title').textContent = `${category} 필수 단어`;
+    $('#quick-words-description').textContent = `${words.length}개 단어를 듣고 바로 사용할 수 있어요.`;
+    $('#quick-word-list').innerHTML = words.map(([jp, reading, ko]) => `
+      <article class="quick-word-card">
+        <button class="speaker" data-action="speak-word" data-text="${jp}" aria-label="${jp} 듣기">▶</button>
+        <strong>${jp}</strong><span class="pronunciation">${reading}</span><small>${ko}</small>
+      </article>`).join('');
+    record('quick_words_open', { category });
+    navigate('quick-words', '');
   }
 
   function openPhrase(id, previousScreen = null) {
@@ -314,8 +334,10 @@
     if (!target) return;
     const { action, id, category } = target.dataset;
     if (action === 'open-category') openList(category);
+    if (action === 'open-quick-words') openQuickWords(category);
     if (action === 'open-phrase') openPhrase(id);
     if (action === 'speak') { event.stopPropagation(); const phrase = findPhrase(id); if (phrase) speak(phrase.jp); }
+    if (action === 'speak-word') { event.stopPropagation(); speak(target.dataset.text); }
     if (action === 'speak-ai') speak(target.dataset.text);
     if (action === 'search-term') { $('#global-search').value = target.dataset.term; renderSearch(target.dataset.term); }
     if (action === 'speak-kana') speak(target.dataset.character);
