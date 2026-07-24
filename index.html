@@ -7,6 +7,7 @@
     <meta name="description" content="여행 중 바로 쓰는 일본어 회화" />
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="mvp.css" />
     <title>tabi — 여행 일본어</title>
   </head>
   <body>
@@ -33,6 +34,10 @@
           <span><strong>여행 중 자주 쓰는 말</strong><small>가장 많이 찾는 핵심 표현만 모았어요</small></span>
           <b>›</b>
         </button>
+        <section class="recent-section" id="recent-section" hidden>
+          <div class="section-heading"><h2>최근 확인한 표현</h2><button class="text-button" id="history-button">전체 보기</button></div>
+          <div class="recent-list" id="recent-list"></div>
+        </section>
       </section>
 
       <section class="screen" id="list-screen">
@@ -53,6 +58,7 @@
         <div class="detail-info"><p class="eyebrow">WHEN TO USE</p><h2>이럴 때 써요</h2><p id="detail-use"></p></div>
         <div class="detail-info note"><p class="eyebrow">TRAVEL TIP</p><h2>여행 팁</h2><p id="detail-note"></p></div>
         <div class="detail-info" id="detail-related-wrap"><p class="eyebrow">ALSO USEFUL</p><h2>함께 알아두면 좋아요</h2><div id="detail-related"></div></div>
+        <div class="feedback-row"><span>이 표현이 도움이 됐나요?</span><button data-feedback="helpful">도움돼요</button><button data-feedback="report">오류 신고</button></div>
       </section>
 
       <section class="screen" id="ask-screen">
@@ -63,8 +69,14 @@
         <div class="ask-answer" id="ask-answer"></div>
         <form class="ask-form" id="ask-form"><input id="ask-input" placeholder="예: 호텔 체크인을 하고 싶어" /><button aria-label="질문 보내기">↑</button></form>
       </section>
+
+      <section class="screen" id="history-screen">
+        <button class="back-button" data-back>‹ <span>뒤로</span></button>
+        <div class="list-header"><p class="eyebrow">LEARNING LOG</p><h1>최근 확인</h1><p id="history-description"></p></div>
+        <div class="phrase-list" id="history-list"></div>
+      </section>
     </main>
-    <nav class="bottom-nav"><button class="nav-item active" data-nav="home"><span>⌂</span>홈</button><button class="nav-item" data-nav="ask"><span>✦</span>AI 질문</button><button class="nav-item" data-nav="favorites"><span>♡</span>저장됨</button></nav>
+    <nav class="bottom-nav"><button class="nav-item active" data-nav="home"><span>⌂</span>홈</button><button class="nav-item" data-nav="ask"><span>✦</span>AI 질문</button><button class="nav-item" data-nav="history"><span>◷</span>최근</button><button class="nav-item" data-nav="favorites"><span>♡</span>저장됨</button></nav>
     <script src="app.js"></script>
   </body>
 </html>
