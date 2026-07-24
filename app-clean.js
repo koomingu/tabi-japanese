@@ -45,6 +45,10 @@
     hiragana: { basic: kana.hiragana.slice(0, 46), voiced: kana.hiragana.slice(46, 71), contracted: kana.hiragana.slice(71) },
     katakana: { basic: kana.katakana.slice(0, 46), voiced: kana.katakana.slice(46, 71), contracted: kana.katakana.slice(71) }
   };
+  const searchAliases = {
+    식당: '식사 음식 주문 밥 점심 저녁 알레르기', 교통: '전철 지하철 버스 택시 기차 환승', 쇼핑: '가격 결제 카드 면세 선물 기념품', 숙소: '호텔 료칸 체크인 체크아웃 와이파이',
+    '길 묻기': '방향 지도 위치 길찾기 화장실 출구', '긴급 상황': '분실 사고 위험 경찰 도움 신고', 공항: '비행기 출국 입국 탑승 수하물 보안검색 환전', 관광지: '여행 명소 입장권 관람 사진 투어', 카페: '커피 음료 디저트 테이크아웃', '병원·약국': '아픔 진료 의사 약 감기 통증 응급'
+  };
 
   function saveState() {
     localStorage.setItem(storageKey('favorites'), JSON.stringify(state.favorites));
@@ -102,7 +106,7 @@
   function renderCategories() {
     $('#category-grid').innerHTML = Object.entries(categoryMeta).map(([name, [icon, color, description]]) => `
       <button class="category-card" data-action="open-category" data-category="${name}" style="--card:${color}">
-        <span class="emoji">${icon}</span><strong>${name}</strong><small>${description} · 10개</small>
+        <span class="emoji">${icon}</span><strong>${name}</strong><small>${description} · ${phrases.filter(phrase => phrase.cat === name).length}개</small>
       </button>`).join('');
   }
 
@@ -208,7 +212,7 @@
   }
 
   function localRecommendation(question) {
-    const intents = { 물: '식당-0', 포장: '식당-6', 계산: '식당-7', 메뉴: '식당-1', 추천: '식당-2', 역: '교통-0', 택시: '교통-0', 막차: '교통-5', 가격: '쇼핑-0', 얼마: '쇼핑-0', 카드: '쇼핑-1', 면세: '쇼핑-4', 체크인: '숙소-0', 체크아웃: '숙소-2', 호텔: '숙소-0', 와이파이: '숙소-5', 화장실: '길 묻기-1', 길: '길 묻기-0', 사진: '길 묻기-4', 여권: '긴급 상황-7', 경찰: '긴급 상황-1', 병원: '긴급 상황-3', 구급차: '긴급 상황-2' };
+    const intents = { 물: '식당-0', 포장: '식당-6', 계산: '식당-7', 메뉴: '식당-1', 추천: '식당-2', 역: '교통-0', 택시: '교통-0', 막차: '교통-5', 가격: '쇼핑-0', 얼마: '쇼핑-0', 카드: '쇼핑-1', 면세: '쇼핑-4', 체크인: '숙소-0', 체크아웃: '숙소-2', 호텔: '숙소-0', 와이파이: '숙소-5', 화장실: '길 묻기-1', 길: '길 묻기-0', 사진: '길 묻기-4', 여권: '긴급 상황-7', 경찰: '긴급 상황-1', 병원: '병원·약국-0', 약국: '병원·약국-8', 약: '병원·약국-4', 공항: '공항-0', 탑승: '공항-1', 비행기: '공항-2', 환승: '공항-5', 관광: '관광지-0', 입장권: '관광지-0', 카페: '카페-0', 커피: '카페-0', 구급차: '긴급 상황-2' };
     const matchingId = Object.entries(intents).find(([keyword]) => question.includes(keyword))?.[1];
     return findPhrase(matchingId) || phrases[0];
   }
@@ -252,7 +256,7 @@
 
   function renderSearch(query) {
     const normalized = query.trim().toLowerCase();
-    const results = normalized ? phrases.filter(phrase => `${phrase.jp}${phrase.romaji}${phrase.ko}${phrase.cat}`.toLowerCase().includes(normalized)).slice(0, 6) : [];
+    const results = normalized ? phrases.filter(phrase => `${phrase.jp}${phrase.romaji}${phrase.ko}${phrase.cat}${searchAliases[phrase.cat]}`.toLowerCase().includes(normalized)).slice(0, 6) : [];
     $('#search-results').innerHTML = results.map(phraseCard).join('') || (normalized ? '<p class="empty-search">찾는 표현이 없어요. AI 질문을 이용해 보세요.</p>' : '');
     if (normalized) saveSearch(normalized);
     renderSearchSuggestions(normalized);
