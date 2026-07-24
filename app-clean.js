@@ -99,7 +99,9 @@
   function phraseCard(phrase) {
     return `<article class="phrase-card" data-action="open-phrase" data-id="${phrase.id}">
       <button class="speaker" data-action="speak" data-id="${phrase.id}" aria-label="${phrase.jp} 듣기">▶</button>
-      <div class="jp">${phrase.jp}</div><div class="ko">${phrase.ko}</div>
+      <div class="jp">${phrase.jp}</div>
+      <div class="pronunciation">${phrase.romaji}</div>
+      <div class="ko">${phrase.ko}</div>
     </article>`;
   }
 
@@ -157,15 +159,21 @@
     $('#detail-korean').textContent = phrase.ko;
     $('#detail-use').textContent = phrase.use;
     $('#detail-note').textContent = phrase.note;
-    $('#detail-polite').textContent = phrase.jp.startsWith('すみません') ? phrase.jp : `すみません、${phrase.jp}`;
-    $('#detail-dialogue').textContent = `나: ${phrase.jp}\n상대: はい、かしこまりました。`;
+    const politeJapanese = phrase.jp.startsWith('すみません') ? phrase.jp : `すみません、${phrase.jp}`;
+    const politeReading = phrase.jp.startsWith('すみません') ? phrase.romaji : `스미마센, ${phrase.romaji}`;
+    const politeMeaning = phrase.jp.startsWith('すみません') ? phrase.ko : `실례합니다, ${phrase.ko}`;
+    $('#detail-polite').textContent = politeJapanese;
+    $('#detail-polite-reading').textContent = politeReading;
+    $('#detail-polite-meaning').textContent = politeMeaning;
+    $('#detail-dialogue').textContent = `나: ${phrase.jp}\n${phrase.romaji}\n${phrase.ko}\n\n상대: はい、かしこまりました。\n하이, 카시코마리마시타.\n네, 알겠습니다.`;
     $('#detail-favorite').classList.toggle('is-saved', state.favorites.includes(id));
 
     const related = phrases.filter(item => item.cat === phrase.cat && item.id !== id).slice(0, 2);
     $('#detail-related').innerHTML = related.map(item => `
-      <button class="related-item" data-action="open-phrase" data-id="${item.id}">
-        <strong>${item.jp}</strong><span>${item.ko}</span>
-      </button>`).join('');
+      <article class="related-item" data-action="open-phrase" data-id="${item.id}">
+        <button class="speaker" data-action="speak" data-id="${item.id}" aria-label="${item.jp} 듣기">▶</button>
+        <strong>${item.jp}</strong><span class="pronunciation">${item.romaji}</span><span>${item.ko}</span>
+      </article>`).join('');
     record('phrase_view', { id, category: phrase.cat });
     navigate('detail', '');
   }
@@ -319,6 +327,14 @@
     $$('.nav-item').forEach(button => button.addEventListener('click', () => button.dataset.nav === 'favorites' ? openList('favorites') : navigate(button.dataset.nav)));
     $$('.back-button').forEach(button => button.addEventListener('click', () => navigate(state.previousScreen)));
     $('#detail-listen').addEventListener('click', () => state.activePhrase && speak(state.activePhrase.jp));
+    $('#detail-polite-listen').addEventListener('click', () => {
+      if (!state.activePhrase) return;
+      const text = state.activePhrase.jp.startsWith('すみません') ? state.activePhrase.jp : `すみません、${state.activePhrase.jp}`;
+      speak(text);
+    });
+    $('#detail-dialogue-listen').addEventListener('click', () => {
+      if (state.activePhrase) speak(`${state.activePhrase.jp}。はい、かしこまりました。`);
+    });
     $('#detail-copy').addEventListener('click', copyPhrase);
     $('#detail-favorite').addEventListener('click', toggleFavorite);
     $$('.feedback-row button').forEach(button => button.addEventListener('click', () => { button.classList.add('selected'); record('feedback', { type: button.dataset.feedback, id: state.activePhrase?.id }); showToast(button.dataset.feedback === 'helpful' ? '의견을 기록했어요.' : '오류 신고를 기록했어요.'); }));
