@@ -8,6 +8,7 @@ Deno.serve(async (request) => {
   try {
     const { question } = await request.json();
     if (!question || typeof question !== "string") throw new Error("question is required");
+    if (question.trim().length > 400) throw new Error("question is too long");
     const key = Deno.env.get("OPENAI_API_KEY");
     const model = Deno.env.get("OPENAI_MODEL");
     if (!key || !model) throw new Error("AI service is not configured");
