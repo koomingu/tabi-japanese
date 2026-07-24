@@ -19,15 +19,23 @@
   const state = {
     favorites: readList('favorites'),
     views: readList('views'),
+    recentSearches: readList('recent-searches'),
     activePhrase: null,
     previousScreen: 'home',
     reviewItems: [],
-    reviewIndex: 0
+    reviewIndex: 0,
+    kanaScript: 'hiragana'
+  };
+
+  const kana = {
+    hiragana: [['あ','아'],['い','이'],['う','우'],['え','에'],['お','오'],['か','카'],['き','키'],['く','쿠'],['け','케'],['こ','코'],['さ','사'],['し','시'],['す','스'],['せ','세'],['そ','소'],['た','타'],['ち','치'],['つ','츠'],['て','테'],['と','토'],['な','나'],['に','니'],['ぬ','누'],['ね','네'],['の','노']],
+    katakana: [['ア','아'],['イ','이'],['ウ','우'],['エ','에'],['オ','오'],['カ','카'],['キ','키'],['ク','쿠'],['ケ','케'],['コ','코'],['サ','사'],['シ','시'],['ス','스'],['セ','세'],['ソ','소'],['タ','타'],['チ','치'],['ツ','츠'],['テ','테'],['ト','토'],['ナ','나'],['ニ','니'],['ヌ','누'],['ネ','네'],['ノ','노']]
   };
 
   function saveState() {
     localStorage.setItem(storageKey('favorites'), JSON.stringify(state.favorites));
     localStorage.setItem(storageKey('views'), JSON.stringify(state.views));
+    localStorage.setItem(storageKey('recent-searches'), JSON.stringify(state.recentSearches));
   }
 
   function record(name, data = {}) {
@@ -106,6 +114,7 @@
   }
 
   function openList(type) {
+    state.previousScreen = $('.screen.active').id.replace('-screen', '');
     const list = type === 'popular' ? phrases.slice(0, 12)
       : type === 'favorites' ? phrases.filter(phrase => state.favorites.includes(phrase.id))
       : phrases.filter(phrase => phrase.cat === type);
@@ -117,7 +126,10 @@
     $('#list-eyebrow').textContent = eyebrow;
     $('#list-title').textContent = title;
     $('#list-description').textContent = list.length ? `${list.length}개의 표현을 준비했어요.` : '아직 저장한 표현이 없어요.';
-    $('#phrase-list').innerHTML = list.map(phraseCard).join('');
+    const isCategory = !labels[type];
+    $('#phrase-list').innerHTML = isCategory && list.length
+      ? `<p class="featured-label">FEATURED PHRASE</p>${phraseCard(list[0])}${list.slice(1).map(phraseCard).join('')}`
+      : list.map(phraseCard).join('');
     record('category_open', { type });
     navigate('list', type === 'favorites' ? 'favorites' : '');
   }
@@ -238,7 +250,46 @@
     const normalized = query.trim().toLowerCase();
     const results = normalized ? phrases.filter(phrase => `${phrase.jp}${phrase.romaji}${phrase.ko}${phrase.cat}`.toLowerCase().includes(normalized)).slice(0, 6) : [];
     $('#search-results').innerHTML = results.map(phraseCard).join('') || (normalized ? '<p class="empty-search">찾는 표현이 없어요. AI 질문을 이용해 보세요.</p>' : '');
-    if (normalized) record('search', { query: normalized });
+    if (normalized) saveSearch(normalized);
+    renderSearchSuggestions(normalized);
+  }
+
+  function saveSearch(query) {
+    clearTimeout(saveSearch.timeout);
+    saveSearch.timeout = setTimeout(() => {
+      state.recentSearches = [query, ...state.recentSearches.filter(item => item !== query)].slice(0, 5);
+      saveState();
+      record('search', { query });
+    }, 450);
+  }
+
+  function renderSearchSuggestions(query = '') {
+    const suggested = ['물', '계산', '택시', '체크인', '화장실'];
+    const searches = query ? [] : state.recentSearches;
+    const label = searches.length ? '최근 검색' : '추천 검색';
+    const terms = searches.length ? searches : suggested;
+    $('#search-suggestions').innerHTML = `<p>${label}</p>${terms.map(term => `<button data-action="search-term" data-term="${term}">${term}</button>`).join('')}`;
+  }
+
+  async function copyPhrase() {
+    const phrase = state.activePhrase;
+    if (!phrase) return;
+    try {
+      await navigator.clipboard.writeText(phrase.jp);
+      showToast('일본어 표현을 복사했어요.');
+      record('phrase_copy', { id: phrase.id });
+    } catch {
+      showToast('복사할 수 없어요. 표현을 길게 눌러 복사해 주세요.');
+    }
+  }
+
+  function renderKana() {
+    const characters = kana[state.kanaScript];
+    $$('.kana-tabs button').forEach(button => button.classList.toggle('active', button.dataset.kana === state.kanaScript));
+    $('#kana-grid').innerHTML = characters.map(([character, pronunciation]) => `
+      <button class="kana-item" data-action="speak-kana" data-character="${character}">
+        <strong>${character}</strong><small>${pronunciation}</small>
+      </button>`).join('');
   }
 
   function handleAction(event) {
@@ -249,6 +300,8 @@
     if (action === 'open-phrase') openPhrase(id);
     if (action === 'speak') { event.stopPropagation(); const phrase = findPhrase(id); if (phrase) speak(phrase.jp); }
     if (action === 'speak-ai') speak(target.dataset.text);
+    if (action === 'search-term') { $('#global-search').value = target.dataset.term; renderSearch(target.dataset.term); }
+    if (action === 'speak-kana') speak(target.dataset.character);
   }
 
   function bindStaticEvents() {
@@ -258,6 +311,7 @@
     $$('.nav-item').forEach(button => button.addEventListener('click', () => button.dataset.nav === 'favorites' ? openList('favorites') : navigate(button.dataset.nav)));
     $$('.back-button').forEach(button => button.addEventListener('click', () => navigate(state.previousScreen)));
     $('#detail-listen').addEventListener('click', () => state.activePhrase && speak(state.activePhrase.jp));
+    $('#detail-copy').addEventListener('click', copyPhrase);
     $('#detail-favorite').addEventListener('click', toggleFavorite);
     $$('.feedback-row button').forEach(button => button.addEventListener('click', () => { button.classList.add('selected'); record('feedback', { type: button.dataset.feedback, id: state.activePhrase?.id }); showToast(button.dataset.feedback === 'helpful' ? '의견을 기록했어요.' : '오류 신고를 기록했어요.'); }));
     $('#global-search').addEventListener('input', event => renderSearch(event.target.value));
@@ -267,6 +321,8 @@
     $('#review-reveal').addEventListener('click', () => { $('#review-answer').hidden = false; $('#review-listen').hidden = false; $('#review-reveal').hidden = true; record('review_reveal'); });
     $('#review-listen').addEventListener('click', () => speak(state.reviewItems[state.reviewIndex].jp));
     $('#review-next').addEventListener('click', () => { if (state.reviewIndex === state.reviewItems.length - 1) { record('review_complete'); navigate('home'); showToast('복습을 완료했어요!'); } else { state.reviewIndex += 1; renderReview(); } });
+    $('#kana-button').addEventListener('click', () => { state.previousScreen = 'home'; renderKana(); navigate('kana', ''); });
+    $$('.kana-tabs button').forEach(button => button.addEventListener('click', () => { state.kanaScript = button.dataset.kana; renderKana(); }));
   }
 
   function registerServiceWorker() {
@@ -278,6 +334,7 @@
   }
 
   renderCategories();
+  renderSearchSuggestions();
   bindStaticEvents();
   registerServiceWorker();
   navigate('home');
