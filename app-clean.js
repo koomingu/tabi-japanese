@@ -107,7 +107,6 @@
   }
 
   function renderBrowse() {
-    renderRecent();
     const events = readList('events');
     const audioCount = events.filter(event => event.name === 'audio_play').length;
     $('#stat-views').textContent = state.views.length;
@@ -116,15 +115,6 @@
     $('#progress-label').textContent = state.views.length
       ? `여행 준비 ${Math.min(100, Math.round((state.views.length / 12) * 100))}%`
       : '';
-  }
-
-  function renderRecent() {
-    const recent = state.views.slice(0, 3).map(findPhrase).filter(Boolean);
-    $('#recent-section').hidden = recent.length === 0;
-    $('#recent-list').innerHTML = recent.map(phrase => `
-      <button class="recent-item" data-action="open-phrase" data-id="${phrase.id}">
-        <span><strong>${phrase.jp}</strong><small>${phrase.ko}</small></span><b>›</b>
-      </button>`).join('');
   }
 
   function openList(type) {
@@ -322,7 +312,6 @@
   function bindStaticEvents() {
     document.addEventListener('click', handleAction);
     $('#popular-button').addEventListener('click', () => openList('popular'));
-    $('#history-button').addEventListener('click', () => navigate('history'));
     $$('.nav-item').forEach(button => button.addEventListener('click', () => button.dataset.nav === 'favorites' ? openList('favorites') : navigate(button.dataset.nav)));
     $$('.back-button').forEach(button => button.addEventListener('click', () => navigate(state.previousScreen)));
     $('#detail-listen').addEventListener('click', () => state.activePhrase && speak(state.activePhrase.jp));
