@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#faf8f4" />
+    <meta name="description" content="여행 중 바로 쓰는 일본어 회화" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="stylesheet" href="styles.css" />
+    <title>tabi — 여행 일본어</title>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="#home" aria-label="tabi 홈">tabi<span>旅</span></a>
+        <button class="icon-button" id="favorites-button" aria-label="즐겨찾기 보기">♡<span id="favorite-count">0</span></button>
+      </header>
+
+      <section class="screen active" id="home-screen">
+        <div class="hero">
+          <p class="eyebrow">JAPAN TRAVEL PHRASES</p>
+          <h1>필요한 말,<br /><em>10초 안에.</em></h1>
+          <p>여행 중 바로 꺼내 쓰는 일본어 회화</p>
+        </div>
+        <label class="search-box" for="global-search">
+          <span>⌕</span><input id="global-search" autocomplete="off" placeholder="무엇을 말하고 싶으세요?" />
+        </label>
+        <div id="search-results" class="search-results"></div>
+        <div class="section-heading"><h2>지금 필요한 상황</h2><span>6가지</span></div>
+        <div class="category-grid" id="category-grid"></div>
+        <button class="quick-card" id="popular-button">
+          <span class="quick-icon">✦</span>
+          <span><strong>여행 중 자주 쓰는 말</strong><small>가장 많이 찾는 핵심 표현만 모았어요</small></span>
+          <b>›</b>
+        </button>
+      </section>
+
+      <section class="screen" id="list-screen">
+        <button class="back-button" data-back>‹ <span>뒤로</span></button>
+        <div class="list-header"><p class="eyebrow" id="list-eyebrow">SITUATION</p><h1 id="list-title">식당</h1><p id="list-description"></p></div>
+        <div class="phrase-list" id="phrase-list"></div>
+      </section>
+
+      <section class="screen" id="detail-screen">
+        <button class="back-button" data-back>‹ <span>목록</span></button>
+        <article class="detail-card">
+          <div class="detail-top"><span class="tag" id="detail-category"></span><button class="heart-button" id="detail-favorite" aria-label="즐겨찾기">♡</button></div>
+          <p class="japanese" id="detail-japanese"></p>
+          <p class="romaji" id="detail-romaji"></p>
+          <p class="korean" id="detail-korean"></p>
+          <button class="listen-button" id="detail-listen"><span>▶</span> 일본어로 듣기</button>
+        </article>
+        <div class="detail-info"><p class="eyebrow">WHEN TO USE</p><h2>이럴 때 써요</h2><p id="detail-use"></p></div>
+        <div class="detail-info note"><p class="eyebrow">TRAVEL TIP</p><h2>여행 팁</h2><p id="detail-note"></p></div>
+        <div class="detail-info" id="detail-related-wrap"><p class="eyebrow">ALSO USEFUL</p><h2>함께 알아두면 좋아요</h2><div id="detail-related"></div></div>
+      </section>
+
+      <section class="screen" id="ask-screen">
+        <div class="ask-hero"><p class="eyebrow">ASK TABI</p><h1>어떻게<br /><em>말할까요?</em></h1><p>한국어로 편하게 물어보세요.</p></div>
+        <div class="suggestion-chips" id="suggestion-chips">
+          <button>식당에서 물을 달라고 하고 싶어</button><button>역까지 가고 싶어</button><button>포장 가능한지 물어보고 싶어</button>
+        </div>
+        <div class="ask-answer" id="ask-answer"></div>
+        <form class="ask-form" id="ask-form"><input id="ask-input" placeholder="예: 호텔 체크인을 하고 싶어" /><button aria-label="질문 보내기">↑</button></form>
+      </section>
+    </main>
+    <nav class="bottom-nav"><button class="nav-item active" data-nav="home"><span>⌂</span>홈</button><button class="nav-item" data-nav="ask"><span>✦</span>AI 질문</button><button class="nav-item" data-nav="favorites"><span>♡</span>저장됨</button></nav>
+    <script src="app.js"></script>
+  </body>
+</html>
