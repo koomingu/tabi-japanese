@@ -405,7 +405,12 @@
     if (action === 'open-phrase') openPhrase(id);
     if (action === 'speak') { event.stopPropagation(); const phrase = findPhrase(id); if (phrase) speak(phrase.jp); }
     if (action === 'speak-word') { event.stopPropagation(); speak(target.dataset.text); }
-    if (action === 'clear-recent-searches') { state.recentSearches = []; saveState(); renderSearchSuggestions(''); }
+    if (action === 'clear-recent-searches') {
+      clearTimeout(saveSearch.timeout);
+      state.recentSearches = [];
+      saveState();
+      renderSearchSuggestions('');
+    }
     if (action === 'speak-ai') speak(target.dataset.text);
     if (action === 'search-term') { $('#global-search').value = target.dataset.term; state.searchActive = true; renderSearch(target.dataset.term); $('#global-search').focus(); }
     if (action === 'speak-kana') speak(target.dataset.character);
