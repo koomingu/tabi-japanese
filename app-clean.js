@@ -4,6 +4,12 @@
   const phrases = window.TABI_PHRASES;
   const categoryMeta = window.TABI_META;
   const quickWords = window.TABI_QUICK_WORDS || {};
+  const travelModes = [
+    { id: 'water', icon: '💧', title: '물 · 화장실', subtitle: '가장 급할 때', phraseIds: ['식당-0', '길 묻기-1'] },
+    { id: 'order', icon: '🍽️', title: '주문 · 계산', subtitle: '식당과 카페에서', phraseIds: ['식당-3', '식당-7', '카페-0'] },
+    { id: 'route', icon: '🚃', title: '길 · 교통', subtitle: '이동할 때', phraseIds: ['길 묻기-0', '교통-0', '교통-6'] },
+    { id: 'emergency', icon: '🆘', title: '긴급 도움', subtitle: '도움이 필요할 때', phraseIds: ['긴급 상황-0', '긴급 상황-1', '긴급 상황-2', '긴급 상황-3'] }
+  ];
   const $ = selector => document.querySelector(selector);
   const $$ = selector => [...document.querySelectorAll(selector)];
   const storageKey = name => `tabi-${name}`;
@@ -77,6 +83,7 @@
     $$('.nav-item').forEach(button => button.classList.toggle('active', button.dataset.nav === activeNav));
     if (screen === 'browse') renderBrowse();
     if (screen === 'history') renderHistory();
+    if (screen === 'home') renderHome();
     window.scrollTo(0, 0);
   }
 
@@ -98,8 +105,9 @@
   }
 
   function phraseCard(phrase) {
-    return `<article class="phrase-card" data-action="open-phrase" data-id="${phrase.id}">
+    return `<article class="phrase-card" data-action="speak" data-id="${phrase.id}" role="button" tabindex="0" aria-label="${phrase.jp} 일본어로 듣기">
       <button class="speaker" data-action="speak" data-id="${phrase.id}" aria-label="${phrase.jp} 듣기">▶</button>
+      <button class="phrase-detail-action" data-action="open-phrase" data-id="${phrase.id}">자세히</button>
       <div class="jp">${phrase.jp}</div>
       <div class="pronunciation">${phrase.romaji}</div>
       <div class="ko">${phrase.ko}</div>
@@ -122,6 +130,17 @@
     $('#progress-label').textContent = state.views.length
       ? `여행 준비 ${Math.min(100, Math.round((state.views.length / 12) * 100))}%`
       : '';
+  }
+
+  function renderHome() {
+    $('#travel-mode-grid').innerHTML = travelModes.map(mode => `
+      <button class="travel-mode-card" data-action="open-travel-mode" data-mode="${mode.id}">
+        <span>${mode.icon}</span><strong>${mode.title}</strong><small>${mode.subtitle}</small>
+      </button>`).join('');
+    const favorites = state.favorites.map(findPhrase).filter(Boolean).slice(0, 12);
+    $('#my-travel-count').textContent = favorites.length ? `${favorites.length}개` : '';
+    $('#my-travel-empty').hidden = favorites.length > 0;
+    $('#my-travel-list').innerHTML = favorites.map(phraseCard).join('');
   }
 
   function openList(type) {
@@ -147,6 +166,20 @@
       : list.map(phraseCard).join('');
     record('category_open', { type });
     navigate('list', type === 'favorites' ? 'favorites' : '');
+  }
+
+  function openTravelMode(modeId) {
+    const mode = travelModes.find(item => item.id === modeId);
+    if (!mode) return;
+    state.previousScreen = 'home';
+    const list = mode.phraseIds.map(findPhrase).filter(Boolean);
+    $('#list-eyebrow').textContent = 'TRAVEL MODE';
+    $('#list-title').textContent = mode.title;
+    $('#list-description').textContent = '카드를 누르면 바로 일본어 음성이 재생돼요.';
+    $('#quick-word-entry').innerHTML = '';
+    $('#phrase-list').innerHTML = list.map(phraseCard).join('');
+    record('travel_mode_open', { mode: modeId });
+    navigate('list', '');
   }
 
   function openQuickWords(category) {
@@ -334,6 +367,7 @@
     if (!target) return;
     const { action, id, category } = target.dataset;
     if (action === 'open-category') openList(category);
+    if (action === 'open-travel-mode') openTravelMode(target.dataset.mode);
     if (action === 'open-quick-words') openQuickWords(category);
     if (action === 'open-phrase') openPhrase(id);
     if (action === 'speak') { event.stopPropagation(); const phrase = findPhrase(id); if (phrase) speak(phrase.jp); }
@@ -381,6 +415,7 @@
   }
 
   renderCategories();
+  renderHome();
   renderSearchSuggestions();
   bindStaticEvents();
   registerServiceWorker();
