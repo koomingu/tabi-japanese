@@ -330,7 +330,6 @@
     const normalized = query.trim().toLowerCase();
     const results = normalized ? phrases.filter(phrase => `${phrase.jp}${phrase.romaji}${phrase.ko}${phrase.cat}${searchAliases[phrase.cat]}`.toLowerCase().includes(normalized)).slice(0, 6) : [];
     $('#search-results').innerHTML = results.map(phraseCard).join('') || (normalized ? '<p class="empty-search">찾는 표현이 없어요. AI 질문을 이용해 보세요.</p>' : '');
-    if (normalized) saveSearch(normalized);
     renderSearchSuggestions(normalized);
   }
 
@@ -357,6 +356,19 @@
     panel.innerHTML = `<div class="search-panel-heading"><p>${title}</p>${!query && terms.length ? '<button data-action="clear-recent-searches">전체 삭제</button>' : ''}</div>${terms.length
       ? `<div class="search-term-list">${terms.map(term => `<button data-action="search-term" data-term="${term}"><span>${query ? '⌕' : '◷'}</span>${term}<b>↗</b></button>`).join('')}</div>`
       : `<small>${empty}</small>`}`;
+    panel.querySelector('[data-action="clear-recent-searches"]')?.addEventListener('click', event => {
+      event.preventDefault();
+      event.stopPropagation();
+      clearRecentSearches();
+    });
+  }
+
+  function clearRecentSearches() {
+    clearTimeout(saveSearch.timeout);
+    state.recentSearches = [];
+    localStorage.removeItem(storageKey('recent-searches'));
+    renderSearchSuggestions('');
+    showToast('최근 검색어를 모두 삭제했어요.');
   }
 
   function getRelatedSearches(query) {
@@ -405,14 +417,9 @@
     if (action === 'open-phrase') openPhrase(id);
     if (action === 'speak') { event.stopPropagation(); const phrase = findPhrase(id); if (phrase) speak(phrase.jp); }
     if (action === 'speak-word') { event.stopPropagation(); speak(target.dataset.text); }
-    if (action === 'clear-recent-searches') {
-      clearTimeout(saveSearch.timeout);
-      state.recentSearches = [];
-      saveState();
-      renderSearchSuggestions('');
-    }
+    if (action === 'clear-recent-searches') clearRecentSearches();
     if (action === 'speak-ai') speak(target.dataset.text);
-    if (action === 'search-term') { $('#global-search').value = target.dataset.term; state.searchActive = true; renderSearch(target.dataset.term); $('#global-search').focus(); }
+    if (action === 'search-term') { $('#global-search').value = target.dataset.term; state.searchActive = true; saveSearch(target.dataset.term); renderSearch(target.dataset.term); $('#global-search').focus(); }
     if (action === 'speak-kana') speak(target.dataset.character);
   }
 
@@ -435,6 +442,9 @@
     $$('.feedback-row button').forEach(button => button.addEventListener('click', () => { button.classList.add('selected'); record('feedback', { type: button.dataset.feedback, id: state.activePhrase?.id }); showToast(button.dataset.feedback === 'helpful' ? '의견을 기록했어요.' : '오류 신고를 기록했어요.'); }));
     $('#global-search').addEventListener('focus', event => { state.searchActive = true; renderSearchSuggestions(event.target.value.trim().toLowerCase()); });
     $('#global-search').addEventListener('input', event => { state.searchActive = true; renderSearch(event.target.value); });
+    $('#global-search').addEventListener('keydown', event => {
+      if (event.key === 'Enter' && event.target.value.trim()) saveSearch(event.target.value.trim().toLowerCase());
+    });
     $('#global-search').addEventListener('blur', () => {
       setTimeout(() => { state.searchActive = false; renderSearchSuggestions(''); }, 160);
     });
