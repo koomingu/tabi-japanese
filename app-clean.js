@@ -5,10 +5,10 @@
   const categoryMeta = window.TABI_META;
   const quickWords = window.TABI_QUICK_WORDS || {};
   const travelModes = [
-    { id: 'water', icon: '💧', title: '물 · 화장실', subtitle: '가장 급할 때', phraseIds: ['식당-0', '길 묻기-1'] },
-    { id: 'order', icon: '🍽️', title: '주문 · 계산', subtitle: '식당과 카페에서', phraseIds: ['식당-3', '식당-7', '카페-0'] },
-    { id: 'route', icon: '🚃', title: '길 · 교통', subtitle: '이동할 때', phraseIds: ['길 묻기-0', '교통-0', '교통-6'] },
-    { id: 'emergency', icon: '🆘', title: '긴급 도움', subtitle: '도움이 필요할 때', phraseIds: ['긴급 상황-0', '긴급 상황-1', '긴급 상황-2', '긴급 상황-3'] }
+    { id: 'water', icon: '💧', title: '물 · 화장실', subtitle: '가장 급할 때', quickCategory: '식당', phraseIds: ['식당-0', '길 묻기-1'] },
+    { id: 'order', icon: '🍽️', title: '주문 · 계산', subtitle: '식당과 카페에서', quickCategory: '식당', phraseIds: ['식당-3', '식당-7', '카페-0'] },
+    { id: 'route', icon: '🚃', title: '길 · 교통', subtitle: '이동할 때', quickCategory: '교통', phraseIds: ['길 묻기-0', '교통-0', '교통-6'] },
+    { id: 'emergency', icon: '🆘', title: '긴급 도움', subtitle: '도움이 필요할 때', quickCategory: '긴급 상황', phraseIds: ['긴급 상황-0', '긴급 상황-1', '긴급 상황-2', '긴급 상황-3'] }
   ];
   const $ = selector => document.querySelector(selector);
   const $$ = selector => [...document.querySelectorAll(selector)];
@@ -176,7 +176,10 @@
     $('#list-eyebrow').textContent = 'TRAVEL MODE';
     $('#list-title').textContent = mode.title;
     $('#list-description').textContent = '카드를 누르면 바로 일본어 음성이 재생돼요.';
-    $('#quick-word-entry').innerHTML = '';
+    $('#quick-word-entry').innerHTML = quickWords[mode.quickCategory] ? `
+      <button class="quick-word-entry" data-action="open-quick-words" data-category="${mode.quickCategory}">
+        <span>🔖</span><div><strong>${mode.title} 필수 단어</strong><small>단어만 모아 빠르게 확인해요</small></div><b>›</b>
+      </button>` : '';
     $('#phrase-list').innerHTML = list.map(phraseCard).join('');
     record('travel_mode_open', { mode: modeId });
     navigate('list', '');
