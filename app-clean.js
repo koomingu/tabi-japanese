@@ -27,6 +27,7 @@
     favorites: readList('favorites'),
     views: readList('views'),
     recentSearches: readList('recent-searches'),
+    searchActive: false,
     activePhrase: null,
     previousScreen: 'home',
     reviewItems: [],
@@ -55,6 +56,13 @@
   const searchAliases = {
     식당: '식사 음식 주문 밥 점심 저녁 알레르기', 교통: '전철 지하철 버스 택시 기차 환승', 쇼핑: '가격 결제 카드 면세 선물 기념품', 숙소: '호텔 료칸 체크인 체크아웃 와이파이',
     '길 묻기': '방향 지도 위치 길찾기 화장실 출구', '긴급 상황': '분실 사고 위험 경찰 도움 신고', 공항: '비행기 출국 입국 탑승 수하물 보안검색 환전', 관광지: '여행 명소 입장권 관람 사진 투어', 카페: '커피 음료 디저트 테이크아웃', '병원·약국': '아픔 진료 의사 약 감기 통증 응급'
+  };
+  const relatedSearches = {
+    물: ['물 주세요', '물티슈', '화장실', '카페 물'], 화장실: ['화장실은 어디', '출구', '역 화장실', '식당 화장실'],
+    역: ['역까지 가기', '전철', '지하철', '택시', '막차'], 택시: ['역까지', '택시 승강장', '여기서 내리기', '목적지'],
+    주문: ['메뉴', '추천 메뉴', '알레르기', '포장', '계산'], 계산: ['따로 계산', '카드 결제', '현금', '영수증'],
+    호텔: ['체크인', '체크아웃', '예약', '와이파이', '수건'], 공항: ['탑승구', '수하물', '환승', '보안 검색', '환전'],
+    병원: ['약국', '머리 아파요', '배 아파요', '약', '구급차'], 쇼핑: ['가격', '카드', '면세', '사이즈', '영수증']
   };
 
   function saveState() {
@@ -336,11 +344,32 @@
   }
 
   function renderSearchSuggestions(query = '') {
-    const suggested = ['물', '계산', '택시', '체크인', '화장실'];
-    const searches = query ? [] : state.recentSearches;
-    const label = searches.length ? '최근 검색' : '추천 검색';
-    const terms = searches.length ? searches : suggested;
-    $('#search-suggestions').innerHTML = `<p>${label}</p>${terms.map(term => `<button data-action="search-term" data-term="${term}">${term}</button>`).join('')}`;
+    const panel = $('#search-suggestions');
+    if (!state.searchActive) {
+      panel.hidden = true;
+      return;
+    }
+    const terms = query ? getRelatedSearches(query) : state.recentSearches;
+    const title = query ? '연관 검색어' : '최근 검색어';
+    const empty = query ? '연관된 검색어가 없어요.' : '최근 검색어가 없어요.';
+    panel.hidden = false;
+    panel.innerHTML = `<p>${title}</p>${terms.length
+      ? `<div class="search-term-list">${terms.map(term => `<button data-action="search-term" data-term="${term}"><span>${query ? '⌕' : '◷'}</span>${term}<b>↗</b></button>`).join('')}</div>`
+      : `<small>${empty}</small>`}`;
+  }
+
+  function getRelatedSearches(query) {
+    const compactQuery = query.replace(/\s/g, '');
+    const direct = Object.entries(relatedSearches).find(([term]) => compactQuery.includes(term) || term.includes(compactQuery))?.[1] || [];
+    const matchedCategories = Object.entries(searchAliases)
+      .filter(([category, aliases]) => `${category} ${aliases}`.toLowerCase().includes(query))
+      .flatMap(([category, aliases]) => [category, ...aliases.split(' ')]);
+    const matchedPhrases = phrases
+      .filter(phrase => `${phrase.jp} ${phrase.romaji} ${phrase.ko}`.toLowerCase().includes(query))
+      .flatMap(phrase => [phrase.ko.replace(/[?.!]/g, ''), phrase.cat]);
+    return [...new Set([...direct, ...matchedCategories, ...matchedPhrases])]
+      .filter(term => term.toLowerCase() !== query)
+      .slice(0, 7);
   }
 
   async function copyPhrase() {
@@ -376,7 +405,7 @@
     if (action === 'speak') { event.stopPropagation(); const phrase = findPhrase(id); if (phrase) speak(phrase.jp); }
     if (action === 'speak-word') { event.stopPropagation(); speak(target.dataset.text); }
     if (action === 'speak-ai') speak(target.dataset.text);
-    if (action === 'search-term') { $('#global-search').value = target.dataset.term; renderSearch(target.dataset.term); }
+    if (action === 'search-term') { $('#global-search').value = target.dataset.term; state.searchActive = true; renderSearch(target.dataset.term); $('#global-search').focus(); }
     if (action === 'speak-kana') speak(target.dataset.character);
   }
 
@@ -397,7 +426,11 @@
     $('#detail-copy').addEventListener('click', copyPhrase);
     $('#detail-favorite').addEventListener('click', toggleFavorite);
     $$('.feedback-row button').forEach(button => button.addEventListener('click', () => { button.classList.add('selected'); record('feedback', { type: button.dataset.feedback, id: state.activePhrase?.id }); showToast(button.dataset.feedback === 'helpful' ? '의견을 기록했어요.' : '오류 신고를 기록했어요.'); }));
-    $('#global-search').addEventListener('input', event => renderSearch(event.target.value));
+    $('#global-search').addEventListener('focus', event => { state.searchActive = true; renderSearchSuggestions(event.target.value.trim().toLowerCase()); });
+    $('#global-search').addEventListener('input', event => { state.searchActive = true; renderSearch(event.target.value); });
+    $('#global-search').addEventListener('blur', () => {
+      setTimeout(() => { state.searchActive = false; renderSearchSuggestions(''); }, 160);
+    });
     $('#ask-form').addEventListener('submit', event => { event.preventDefault(); const question = $('#ask-input').value.trim(); if (question) { askAi(question); $('#ask-input').value = ''; } });
     $$('#suggestion-chips button').forEach(button => button.addEventListener('click', () => askAi(button.textContent)));
     $('#review-button').addEventListener('click', startReview);
