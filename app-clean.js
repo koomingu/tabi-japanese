@@ -345,6 +345,7 @@
 
   function renderSearchSuggestions(query = '') {
     const panel = $('#search-suggestions');
+    $('.home-search-only').classList.toggle('is-searching', state.searchActive);
     if (!state.searchActive) {
       panel.hidden = true;
       return;
@@ -353,7 +354,7 @@
     const title = query ? '연관 검색어' : '최근 검색어';
     const empty = query ? '연관된 검색어가 없어요.' : '최근 검색어가 없어요.';
     panel.hidden = false;
-    panel.innerHTML = `<p>${title}</p>${terms.length
+    panel.innerHTML = `<div class="search-panel-heading"><p>${title}</p>${!query && terms.length ? '<button data-action="clear-recent-searches">전체 삭제</button>' : ''}</div>${terms.length
       ? `<div class="search-term-list">${terms.map(term => `<button data-action="search-term" data-term="${term}"><span>${query ? '⌕' : '◷'}</span>${term}<b>↗</b></button>`).join('')}</div>`
       : `<small>${empty}</small>`}`;
   }
@@ -404,6 +405,7 @@
     if (action === 'open-phrase') openPhrase(id);
     if (action === 'speak') { event.stopPropagation(); const phrase = findPhrase(id); if (phrase) speak(phrase.jp); }
     if (action === 'speak-word') { event.stopPropagation(); speak(target.dataset.text); }
+    if (action === 'clear-recent-searches') { state.recentSearches = []; saveState(); renderSearchSuggestions(''); }
     if (action === 'speak-ai') speak(target.dataset.text);
     if (action === 'search-term') { $('#global-search').value = target.dataset.term; state.searchActive = true; renderSearch(target.dataset.term); $('#global-search').focus(); }
     if (action === 'speak-kana') speak(target.dataset.character);
