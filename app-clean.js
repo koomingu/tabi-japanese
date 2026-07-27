@@ -270,7 +270,7 @@
 
   function renderExpectedReplies(phrase) {
     const replies = phraseReplies(phrase);
-    $('#detail-expected-replies').innerHTML = `<p class="expected-note">이 표현 뒤에 자주 들을 수 있는 답변이에요.</p>${replies.map(([japanese, , korean]) => `<div class="expected-reply"><strong>${japanese}</strong><span>${korean}</span><div class="expected-reply-actions"><button class="icon-action" data-action="speak-word" data-text="${japanese}" aria-label="${japanese} 듣기" title="일본어 듣기">${icons.listen}</button><button class="icon-action" data-action="copy-word" data-text="${japanese}" aria-label="${japanese} 복사하기" title="일본어 복사하기">${icons.copy}</button></div></div>`).join('')}`;
+    $('#detail-expected-replies').innerHTML = `<p class="expected-note">이 표현 뒤에 자주 들을 수 있는 답변이에요.</p>${replies.map(([japanese, reading, korean]) => `<div class="expected-reply"><strong>${japanese}</strong><span class="expected-reply-reading">${reading}</span><span>${korean}</span><div class="expected-reply-actions"><button class="icon-action" data-action="speak-word" data-text="${japanese}" aria-label="${japanese} 듣기" title="일본어 듣기">${icons.listen}</button><button class="icon-action" data-action="copy-word" data-text="${japanese}" aria-label="${japanese} 복사하기" title="일본어 복사하기">${icons.copy}</button></div></div>`).join('')}`;
   }
 
   function openPhrase(id, previousScreen = null) {
