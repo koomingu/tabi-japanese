@@ -13,22 +13,19 @@
   <body>
     <main class="app-shell">
       <header class="topbar">
-        <a class="brand" href="#home" aria-label="tabi 홈">tabi<span>旅</span></a>
+        <a class="brand" href="#home" aria-label="tabi 검색">tabi<span>旅</span></a>
       </header>
       <p class="offline-note" id="offline-note" hidden>오프라인 모드 · 북마크한 표현을 이용할 수 있어요</p>
 
       <section class="screen active" id="home-screen">
         <div class="home-search-only">
-          <div class="home-search-hero"><h1>필요한 말,<br /><em>10초 안에.</em></h1></div>
+          <div class="home-search-hero"><p class="eyebrow">ASK TABI</p><h1>필요한 말,<br /><em>10초 안에.</em></h1></div>
           <label class="search-box" for="global-search">
             <span>⌕</span><input id="global-search" autocomplete="off" placeholder="무엇을 말하고 싶으세요?" />
           </label>
           <div class="search-suggestions" id="search-suggestions" hidden></div>
           <div id="search-results" class="search-results"></div>
-          <section class="travel-mode" aria-labelledby="travel-mode-title">
-            <p class="eyebrow">TRAVEL MODE</p><h2 id="travel-mode-title">지금 바로 말하기</h2>
-            <div class="travel-mode-grid" id="travel-mode-grid"></div>
-          </section>
+          <div class="ask-answer" id="ask-answer"></div>
         </div>
       </section>
 
@@ -36,17 +33,7 @@
         <div class="list-header"><p class="eyebrow">EXPLORE TABI</p><h1>여행 회화</h1><p>상황에 맞는 표현을 빠르게 찾아보세요.</p></div>
         <div class="section-heading"><h2>지금 필요한 상황</h2><span>10가지</span></div>
         <div class="category-grid" id="category-grid"></div>
-        <button class="quick-card" id="popular-button">
-          <span class="quick-icon">✦</span>
-          <span><strong>여행 중 자주 쓰는 말</strong><small>가장 많이 찾는 핵심 표현만 모았어요</small></span>
-          <b>›</b>
-        </button>
         <button class="kana-card" id="kana-button"><span>あ</span><span><strong>히라가나 · 가타카나 익히기</strong><small>여행 전 알아두면 좋은 일본어 문자</small></span><b>›</b></button>
-        <section class="progress-section">
-          <div class="section-heading"><h2>나의 여행 준비</h2><span id="progress-label"></span></div>
-          <div class="progress-grid"><div><strong id="stat-views">0</strong><small>확인한 표현</small></div><div><strong id="stat-audio">0</strong><small>음성 듣기</small></div><div><strong id="stat-favorites">0</strong><small>북마크한 표현</small></div></div>
-          <button class="review-card" id="review-button"><span>↻</span><div><strong>1분 빠른 복습</strong><small>여행 전에 핵심 표현을 다시 확인해요</small></div><b>›</b></button>
-        </section>
       </section>
 
       <section class="screen" id="list-screen">
@@ -73,21 +60,8 @@
           <button class="icon-action large" id="detail-copy" aria-label="일본어 복사하기" title="일본어 복사하기"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="12" rx="1.5" /><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v10A1.5 1.5 0 0 0 5.5 17H8" /></svg></button>
         </article>
         <section class="detail-info expected-answers"><p class="eyebrow">EXPECTED REPLIES</p><h2>예상 답변</h2><div id="detail-expected-replies"></div></section>
-        <div class="detail-info"><p class="eyebrow">WHEN TO USE</p><h2>이럴 때 써요</h2><p id="detail-use"></p></div>
         <div class="detail-info note"><p class="eyebrow">TRAVEL TIP</p><h2>여행 팁</h2><p id="detail-note"></p></div>
         <div class="detail-info"><p class="eyebrow">POLITE VERSION</p><h2>더 정중하게 말하기</h2><p class="japanese-inline" id="detail-polite"></p><p class="pronunciation-inline" id="detail-polite-reading"></p><p id="detail-polite-meaning"></p><button class="icon-action" id="detail-polite-listen" aria-label="일본어 듣기" title="일본어 듣기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h4l5 4V6L8 10H4Zm12.5-2.5a6 6 0 0 1 0 9M19 5a10 10 0 0 1 0 14" /></svg></button><button class="icon-action" id="detail-polite-copy" aria-label="일본어 복사하기" title="일본어 복사하기"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="12" rx="1.5" /><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 5.5 17H8" /></svg></button></div>
-        <div class="detail-info"><p class="eyebrow">MINI DIALOGUE</p><h2>간단한 대화</h2><p class="dialogue" id="detail-dialogue"></p><button class="icon-action" id="detail-dialogue-listen" aria-label="일본어 듣기" title="일본어 듣기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h4l5 4V6L8 10H4Zm12.5-2.5a6 6 0 0 1 0 9M19 5a10 10 0 0 1 0 14" /></svg></button><button class="icon-action" id="detail-dialogue-copy" aria-label="일본어 복사하기" title="일본어 복사하기"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="12" rx="1.5" /><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 5.5 17H8" /></svg></button></div>
-        <div class="detail-info" id="detail-related-wrap"><p class="eyebrow">ALSO USEFUL</p><h2>함께 알아두면 좋아요</h2><div id="detail-related"></div></div>
-        <div class="feedback-row"><span>이 표현이 도움이 됐나요?</span><button data-feedback="helpful">도움돼요</button><button data-feedback="report">오류 신고</button></div>
-      </section>
-
-      <section class="screen" id="ask-screen">
-        <div class="ask-hero"><p class="eyebrow">ASK TABI</p><h1>어떻게<br /><em>말할까요?</em></h1><p>한국어로 편하게 물어보세요.</p></div>
-        <div class="suggestion-chips" id="suggestion-chips">
-          <button>식당에서 물을 달라고 하고 싶어</button><button>역까지 가고 싶어</button><button>포장 가능한지 물어보고 싶어</button>
-        </div>
-        <div class="ask-answer" id="ask-answer"></div>
-        <form class="ask-form" id="ask-form"><input id="ask-input" placeholder="예: 호텔 체크인을 하고 싶어" /><button aria-label="질문 보내기">↑</button></form>
       </section>
 
       <section class="screen" id="conversation-screen">
@@ -104,9 +78,15 @@
         </section>
       </section>
 
-      <section class="screen" id="history-screen">
-        <div class="list-header"><p class="eyebrow">LEARNING LOG</p><h1>최근 확인</h1><p id="history-description"></p></div>
-        <div class="phrase-list" id="history-list"></div>
+      <section class="screen" id="profile-screen">
+        <div class="list-header"><p class="eyebrow">MY TABI</p><h1>프로필</h1><p>여행 회화 준비 현황을 확인해 보세요.</p></div>
+        <section class="progress-section">
+          <div class="section-heading"><h2>나의 여행 준비</h2><span id="progress-label"></span></div>
+          <div class="progress-grid"><div><strong id="stat-views">0</strong><small>확인한 표현</small></div><div><strong id="stat-audio">0</strong><small>음성 듣기</small></div><div><strong id="stat-favorites">0</strong><small>북마크한 표현</small></div></div>
+          <button class="review-card" id="review-button"><span>↻</span><div><strong>1분 빠른 복습</strong><small>여행 전에 핵심 표현을 다시 확인해요</small></div><b>›</b></button>
+        </section>
+        <section class="profile-section"><button class="profile-link" data-action="open-profile-list" data-list="history"><span><strong>최근 확인</strong><small id="history-description"></small></span><b>›</b></button></section>
+        <section class="profile-section"><button class="profile-link" data-action="open-profile-list" data-list="favorites"><span><strong>북마크한 표현</strong><small id="profile-favorites-count"></small></span><b>›</b></button></section>
       </section>
 
       <section class="screen" id="review-screen">
@@ -124,7 +104,7 @@
         <div class="kana-grid" id="kana-grid"></div>
       </section>
     </main>
-    <nav class="bottom-nav"><button class="nav-item active" data-nav="home"><span>⌂</span>홈</button><button class="nav-item" data-nav="browse"><span>▦</span>둘러보기</button><button class="nav-item" data-nav="ask"><span>✦</span>AI 질문</button><button class="nav-item" data-nav="conversation"><span>◉</span>대화</button><button class="nav-item" data-nav="history"><span>◷</span>최근</button><button class="nav-item" data-nav="favorites"><span class="nav-bookmark-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.75A1.75 1.75 0 0 1 7.75 2h8.5A1.75 1.75 0 0 1 18 3.75V22l-6-3.75L6 22V3.75Z" /></svg></span>북마크</button></nav>
+    <nav class="bottom-nav"><button class="nav-item active" data-nav="home"><span>⌕</span>검색</button><button class="nav-item" data-nav="browse"><span>▦</span>둘러보기</button><button class="nav-item" data-nav="conversation"><span>◉</span>대화</button><button class="nav-item" data-nav="profile"><span>♙</span>프로필</button></nav>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="runtime-config.js"></script>
     <script>window.TABI_DATA_ONLY = true;</script>

@@ -4,12 +4,6 @@
   const phrases = window.TABI_PHRASES;
   const categoryMeta = window.TABI_META;
   const quickWords = window.TABI_QUICK_WORDS || {};
-  const travelModes = [
-    { id: 'water', icon: '💧', title: '물 · 화장실', subtitle: '가장 급할 때', quickCategory: '식당', phraseIds: ['식당-0', '길 묻기-1'] },
-    { id: 'order', icon: '🍽️', title: '주문 · 계산', subtitle: '식당과 카페에서', quickCategory: '식당', phraseIds: ['식당-3', '식당-7', '카페-0'] },
-    { id: 'route', icon: '🚃', title: '길 · 교통', subtitle: '이동할 때', quickCategory: '교통', phraseIds: ['길 묻기-0', '교통-0', '교통-6'] },
-    { id: 'emergency', icon: '🆘', title: '긴급 도움', subtitle: '도움이 필요할 때', quickCategory: '긴급 상황', phraseIds: ['긴급 상황-0', '긴급 상황-1', '긴급 상황-2', '긴급 상황-3'] }
-  ];
   const $ = selector => document.querySelector(selector);
   const $$ = selector => [...document.querySelectorAll(selector)];
   const storageKey = name => `tabi-${name}`;
@@ -109,9 +103,7 @@
     $$('.screen').forEach(element => element.classList.toggle('active', element.id === `${screen}-screen`));
     $('.topbar').hidden = screen !== 'home';
     $$('.nav-item').forEach(button => button.classList.toggle('active', button.dataset.nav === activeNav));
-    if (screen === 'browse') renderBrowse();
-    if (screen === 'history') renderHistory();
-    if (screen === 'home') renderHome();
+    if (screen === 'profile') renderProfile();
     window.scrollTo(0, 0);
   }
 
@@ -151,7 +143,7 @@
       </button>`).join('');
   }
 
-  function renderBrowse() {
+  function renderProfile() {
     const events = readList('events');
     const audioCount = events.filter(event => event.name === 'audio_play').length;
     $('#stat-views').textContent = state.views.length;
@@ -160,29 +152,26 @@
     $('#progress-label').textContent = state.views.length
       ? `여행 준비 ${Math.min(100, Math.round((state.views.length / 12) * 100))}%`
       : '';
-  }
-
-  function renderHome() {
-    $('#travel-mode-grid').innerHTML = travelModes.map(mode => `
-      <button class="travel-mode-card" data-action="open-travel-mode" data-mode="${mode.id}">
-        <span>${mode.icon}</span><strong>${mode.title}</strong><small>${mode.subtitle}</small>
-      </button>`).join('');
+    $('#history-description').textContent = state.views.length ? `${state.views.length}개 표현` : '아직 확인한 표현이 없어요';
+    $('#profile-favorites-count').textContent = state.favorites.length ? `${state.favorites.length}개 표현` : '아직 북마크한 표현이 없어요';
   }
 
   function openList(type) {
     state.previousScreen = $('.screen.active').id.replace('-screen', '');
-    $('#list-screen [data-back]').hidden = type === 'favorites';
+    $('#list-screen [data-back]').hidden = false;
     const list = type === 'popular' ? phrases.slice(0, 12)
       : type === 'favorites' ? phrases.filter(phrase => state.favorites.includes(phrase.id))
+      : type === 'history' ? state.views.map(findPhrase).filter(Boolean)
       : phrases.filter(phrase => phrase.cat === type);
     const labels = {
       popular: ['QUICK ACCESS', '자주 쓰는 말'],
-      favorites: ['BOOKMARKS', '북마크한 표현']
+      favorites: ['BOOKMARKS', '북마크한 표현'],
+      history: ['LEARNING LOG', '최근 확인']
     };
     const [eyebrow, title] = labels[type] || ['SITUATION', type];
     $('#list-eyebrow').textContent = eyebrow;
     $('#list-title').textContent = title;
-    $('#list-description').textContent = list.length ? `${list.length}개의 표현을 준비했어요.` : '아직 북마크한 표현이 없어요.';
+    $('#list-description').textContent = list.length ? `${list.length}개의 표현을 준비했어요.` : type === 'history' ? '아직 확인한 표현이 없어요.' : '아직 북마크한 표현이 없어요.';
     const isCategory = !labels[type];
     $('#quick-word-entry').innerHTML = quickWords[type] ? `
       <button class="quick-word-entry" data-action="open-quick-words" data-category="${type}">
@@ -192,23 +181,6 @@
       ? `<section class="featured-section"><p class="featured-label">대표 표현 · FEATURED</p>${phraseCard(list[0]).replace('phrase-card', 'phrase-card featured-card')}</section><p class="all-phrases-label">모든 표현</p>${list.slice(1).map(phraseCard).join('')}`
       : list.map(phraseCard).join('');
     record('category_open', { type });
-    navigate('list', type === 'favorites' ? 'favorites' : '');
-  }
-
-  function openTravelMode(modeId) {
-    const mode = travelModes.find(item => item.id === modeId);
-    if (!mode) return;
-    state.previousScreen = 'home';
-    const list = mode.phraseIds.map(findPhrase).filter(Boolean);
-    $('#list-eyebrow').textContent = 'TRAVEL MODE';
-    $('#list-title').textContent = mode.title;
-    $('#list-description').textContent = '카드를 누르면 바로 일본어 음성이 재생돼요.';
-    $('#quick-word-entry').innerHTML = quickWords[mode.quickCategory] ? `
-      <button class="quick-word-entry" data-action="open-quick-words" data-category="${mode.quickCategory}">
-        <span>🔖</span><div><strong>${mode.title} 필수 단어</strong><small>단어만 모아 빠르게 확인해요</small></div><b>›</b>
-      </button>` : '';
-    $('#phrase-list').innerHTML = list.map(phraseCard).join('');
-    record('travel_mode_open', { mode: modeId });
     navigate('list', '');
   }
 
@@ -314,7 +286,6 @@
     $('#detail-japanese').textContent = phrase.jp;
     $('#detail-romaji').textContent = phrase.romaji;
     $('#detail-korean').textContent = phrase.ko;
-    $('#detail-use').textContent = phrase.use;
     $('#detail-note').textContent = phrase.note;
     const politeJapanese = phrase.jp.startsWith('すみません') ? phrase.jp : `すみません、${phrase.jp}`;
     const politeReading = phrase.jp.startsWith('すみません') ? phrase.romaji : `스미마센, ${phrase.romaji}`;
@@ -322,20 +293,8 @@
     $('#detail-polite').textContent = politeJapanese;
     $('#detail-polite-reading').textContent = politeReading;
     $('#detail-polite-meaning').textContent = politeMeaning;
-    const [replyJapanese, replyReading, replyKorean] = phraseReplies(phrase)[0];
-    $('#detail-dialogue').textContent = `나: ${phrase.jp}\n${phrase.romaji}\n${phrase.ko}\n\n상대: ${replyJapanese}\n${replyReading}\n${replyKorean}`;
     $('#detail-favorite').classList.toggle('is-bookmarked', state.favorites.includes(id));
     renderExpectedReplies(phrase);
-
-    const related = phrases.filter(item => item.cat === phrase.cat && item.id !== id).slice(0, 2);
-    $('#detail-related').innerHTML = related.map(item => `
-      <article class="related-item" data-action="open-phrase" data-id="${item.id}">
-        <strong>${item.jp}</strong><span class="pronunciation">${item.romaji}</span><span>${item.ko}</span>
-        <div class="phrase-actions">
-          <button class="icon-action" data-action="speak" data-id="${item.id}" aria-label="${item.jp} 듣기" title="일본어 듣기">${icons.listen}</button>
-          <button class="icon-action" data-action="copy-phrase" data-id="${item.id}" aria-label="${item.jp} 복사하기" title="일본어 복사하기">${icons.copy}</button>
-        </div>
-      </article>`).join('');
     record('phrase_view', { id, category: phrase.cat });
     navigate('detail', '');
   }
@@ -350,12 +309,6 @@
     saveState();
     $('#detail-favorite').classList.toggle('is-bookmarked', isAdding);
     showToast(isAdding ? '북마크에 추가했어요.' : '북마크를 해제했어요.');
-  }
-
-  function renderHistory() {
-    const history = state.views.map(findPhrase).filter(Boolean);
-    $('#history-description').textContent = history.length ? `${history.length}개 표현을 확인했어요.` : '아직 확인한 표현이 없어요.';
-    $('#history-list').innerHTML = history.map(phraseCard).join('');
   }
 
   function startReview() {
@@ -412,6 +365,7 @@
       const response = await fetch(window.TABI_AI_ENDPOINT, { method: 'POST', headers, body: JSON.stringify({ question }) });
       const answer = await response.json();
       if (!response.ok || answer.error) throw new Error(answer.error || 'AI request failed');
+      if ($('#global-search').value.trim() !== question) return;
       $('#ask-answer').innerHTML = `<article class="ai-card"><p class="eyebrow">AI RECOMMENDATION</p>
         <h3></h3><p class="answer-ko"></p><small></small><br><button class="icon-action" data-action="speak-ai" aria-label="일본어 듣기" title="일본어 듣기">${icons.listen}</button><button class="icon-action" data-action="copy-ai" aria-label="일본어 복사하기" title="일본어 복사하기">${icons.copy}</button></article>`;
       const card = $('.ai-card');
@@ -549,7 +503,16 @@
       .filter(phrase => `${phrase.jp}${phrase.romaji}${phrase.ko}${phrase.cat}${searchAliases[phrase.cat]}`.toLowerCase().includes(normalized))
       .filter((phrase, index, matches) => matches.findIndex(match => match.jp === phrase.jp && match.ko === phrase.ko) === index)
       .slice(0, 6) : [];
-    $('#search-results').innerHTML = results.map(phraseCard).join('') || (normalized ? '<p class="empty-search">찾는 표현이 없어요. AI 질문을 이용해 보세요.</p>' : '');
+    $('#search-results').innerHTML = results.map(phraseCard).join('');
+    clearTimeout(renderSearch.aiTimeout);
+    if (!normalized || results.length) {
+      $('#ask-answer').innerHTML = '';
+    } else {
+      const question = query.trim();
+      renderSearch.aiTimeout = setTimeout(() => {
+        if ($('#global-search').value.trim() === question) askAi(question);
+      }, 350);
+    }
     renderSearchSuggestions(normalized);
   }
 
@@ -651,7 +614,7 @@
     if (!target) return;
     const { action, id, category } = target.dataset;
     if (action === 'open-category') openList(category);
-    if (action === 'open-travel-mode') openTravelMode(target.dataset.mode);
+    if (action === 'open-profile-list') openList(target.dataset.list);
     if (action === 'open-quick-words') openQuickWords(category);
     if (action === 'open-phrase') openPhrase(id);
     if (action === 'speak') { event.stopPropagation(); const phrase = findPhrase(id); if (phrase) { flashIcon(target); speak(phrase.jp); } }
@@ -668,8 +631,7 @@
 
   function bindStaticEvents() {
     document.addEventListener('click', handleAction);
-    $('#popular-button').addEventListener('click', () => openList('popular'));
-    $$('.nav-item').forEach(button => button.addEventListener('click', () => button.dataset.nav === 'favorites' ? openList('favorites') : navigate(button.dataset.nav)));
+    $$('.nav-item').forEach(button => button.addEventListener('click', () => navigate(button.dataset.nav)));
     $$('.back-button').forEach(button => button.addEventListener('click', () => navigate(state.previousScreen)));
     $('#detail-listen').addEventListener('click', event => { flashIcon(event.currentTarget); if (state.activePhrase) speak(state.activePhrase.jp); });
     $('#detail-polite-listen').addEventListener('click', event => {
@@ -683,34 +645,22 @@
       const text = state.activePhrase.jp.startsWith('すみません') ? state.activePhrase.jp : `すみません、${state.activePhrase.jp}`;
       copyText(text, { id: state.activePhrase.id, version: 'polite' }, event.currentTarget);
     });
-    $('#detail-dialogue-listen').addEventListener('click', event => {
-      if (state.activePhrase) {
-        const [response] = phraseReplies(state.activePhrase);
-        flashIcon(event.currentTarget);
-        speak(`${state.activePhrase.jp} ${response}`);
-      }
-    });
-    $('#detail-dialogue-copy').addEventListener('click', event => {
-      if (state.activePhrase) {
-        const [response] = phraseReplies(state.activePhrase);
-        copyText(`${state.activePhrase.jp}\n${response}`, { id: state.activePhrase.id, type: 'dialogue' }, event.currentTarget);
-      }
-    });
     $('#detail-copy').addEventListener('click', event => copyPhrase(event.currentTarget));
     $('#detail-favorite').addEventListener('click', toggleFavorite);
     $('#conversation-record').addEventListener('click', startJapaneseRecognition);
     $('#conversation-analyze').addEventListener('click', analyzeConversation);
-    $$('.feedback-row button').forEach(button => button.addEventListener('click', () => { button.classList.add('selected'); record('feedback', { type: button.dataset.feedback, id: state.activePhrase?.id }); showToast(button.dataset.feedback === 'helpful' ? '의견을 기록했어요.' : '오류 신고를 기록했어요.'); }));
     $('#global-search').addEventListener('focus', event => { state.searchActive = true; renderSearchSuggestions(event.target.value.trim().toLowerCase()); });
     $('#global-search').addEventListener('input', event => { state.searchActive = true; renderSearch(event.target.value); });
     $('#global-search').addEventListener('keydown', event => {
-      if (event.key === 'Enter' && event.target.value.trim()) saveSearch(event.target.value.trim().toLowerCase());
+      if (event.key !== 'Enter' || !event.target.value.trim()) return;
+      event.preventDefault();
+      const question = event.target.value.trim();
+      saveSearch(question.toLowerCase());
+      askAi(question);
     });
     $('#global-search').addEventListener('blur', () => {
       setTimeout(() => { state.searchActive = false; renderSearchSuggestions(''); }, 160);
     });
-    $('#ask-form').addEventListener('submit', event => { event.preventDefault(); const question = $('#ask-input').value.trim(); if (question) { askAi(question); $('#ask-input').value = ''; } });
-    $$('#suggestion-chips button').forEach(button => button.addEventListener('click', () => askAi(button.textContent)));
     $('#review-button').addEventListener('click', startReview);
     $('#review-reveal').addEventListener('click', () => { $('#review-answer').hidden = false; $('#review-listen').hidden = false; $('#review-reveal').hidden = true; record('review_reveal'); });
     $('#review-listen').addEventListener('click', () => speak(state.reviewItems[state.reviewIndex].jp));
@@ -729,7 +679,6 @@
   }
 
   renderCategories();
-  renderHome();
   renderConversationLog();
   saveState();
   renderSearchSuggestions();
