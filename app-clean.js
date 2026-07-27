@@ -167,14 +167,11 @@
       <button class="travel-mode-card" data-action="open-travel-mode" data-mode="${mode.id}">
         <span>${mode.icon}</span><strong>${mode.title}</strong><small>${mode.subtitle}</small>
       </button>`).join('');
-    const favorites = state.favorites.map(findPhrase).filter(Boolean).slice(0, 12);
-    $('#my-travel-count').textContent = favorites.length ? `${favorites.length}개` : '';
-    $('#my-travel-empty').hidden = favorites.length > 0;
-    $('#my-travel-list').innerHTML = favorites.map(phraseCard).join('');
   }
 
   function openList(type) {
     state.previousScreen = $('.screen.active').id.replace('-screen', '');
+    $('#list-screen [data-back]').hidden = type === 'favorites';
     const list = type === 'popular' ? phrases.slice(0, 12)
       : type === 'favorites' ? phrases.filter(phrase => state.favorites.includes(phrase.id))
       : phrases.filter(phrase => phrase.cat === type);
@@ -385,8 +382,9 @@
   }
 
   function localRecommendation(question) {
-    const intents = { 물: '식당-0', 포장: '식당-6', 계산: '식당-7', 메뉴: '식당-1', 추천: '식당-2', 역: '교통-0', 택시: '교통-0', 막차: '교통-5', 가격: '쇼핑-0', 얼마: '쇼핑-0', 카드: '쇼핑-1', 면세: '쇼핑-4', 체크인: '숙소-0', 체크아웃: '숙소-2', 호텔: '숙소-0', 와이파이: '숙소-5', 화장실: '길 묻기-1', 길: '길 묻기-0', 사진: '길 묻기-4', 여권: '긴급 상황-7', 경찰: '긴급 상황-1', 병원: '병원·약국-0', 약국: '병원·약국-8', 약: '병원·약국-4', 공항: '공항-0', 탑승: '공항-1', 비행기: '공항-2', 환승: '공항-5', 관광: '관광지-0', 입장권: '관광지-0', 카페: '카페-0', 커피: '카페-0', 구급차: '긴급 상황-2' };
-    const matchingId = Object.entries(intents).find(([keyword]) => question.includes(keyword))?.[1];
+    const intents = { 포장: '식당-6', 계산: '식당-7', 메뉴: '식당-1', 추천: '식당-2', 역: '교통-0', 택시: '교통-0', 막차: '교통-5', 가격: '쇼핑-0', 얼마: '쇼핑-0', 카드: '쇼핑-1', 면세: '쇼핑-4', 체크인: '숙소-0', 체크아웃: '숙소-2', 호텔: '숙소-0', 와이파이: '숙소-5', 화장실: '길 묻기-1', 길: '길 묻기-0', 사진: '길 묻기-4', 여권: '긴급 상황-7', 경찰: '긴급 상황-1', 병원: '병원·약국-0', 약국: '병원·약국-8', 약: '병원·약국-4', 공항: '공항-0', 탑승: '공항-1', 비행기: '공항-2', 환승: '공항-5', 관광: '관광지-0', 입장권: '관광지-0', 카페: '카페-0', 커피: '카페-0', 구급차: '긴급 상황-2' };
+    const matchingId = Object.entries(intents).find(([keyword]) => question.includes(keyword))?.[1]
+      || (/(^|\s)물(?:을|은|도)?(?:\s|$)/.test(question) ? '식당-0' : undefined);
     return findPhrase(matchingId) || phrases[0];
   }
 
@@ -547,7 +545,10 @@
 
   function renderSearch(query) {
     const normalized = query.trim().toLowerCase();
-    const results = normalized ? phrases.filter(phrase => `${phrase.jp}${phrase.romaji}${phrase.ko}${phrase.cat}${searchAliases[phrase.cat]}`.toLowerCase().includes(normalized)).slice(0, 6) : [];
+    const results = normalized ? phrases
+      .filter(phrase => `${phrase.jp}${phrase.romaji}${phrase.ko}${phrase.cat}${searchAliases[phrase.cat]}`.toLowerCase().includes(normalized))
+      .filter((phrase, index, matches) => matches.findIndex(match => match.jp === phrase.jp && match.ko === phrase.ko) === index)
+      .slice(0, 6) : [];
     $('#search-results').innerHTML = results.map(phraseCard).join('') || (normalized ? '<p class="empty-search">찾는 표현이 없어요. AI 질문을 이용해 보세요.</p>' : '');
     renderSearchSuggestions(normalized);
   }
