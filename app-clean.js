@@ -9,7 +9,8 @@
   const storageKey = name => `tabi-${name}`;
   const icons = {
     listen: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h4l5 4V6L8 10H4Zm12.5-2.5a6 6 0 0 1 0 9M19 5a10 10 0 0 1 0 14" /></svg>',
-    copy: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="12" rx="1.5" /><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v10A1.5 1.5 0 0 0 5.5 17H8" /></svg>'
+    copy: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="12" rx="1.5" /><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v10A1.5 1.5 0 0 0 5.5 17H8" /></svg>',
+    bookmark: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.75A1.75 1.75 0 0 1 7.75 2h8.5A1.75 1.75 0 0 1 18 3.75V22l-6-3.75L6 22V3.75Z" /></svg>'
   };
 
   const readList = name => {
@@ -18,6 +19,14 @@
       return Array.isArray(value) ? value : [];
     } catch {
       return [];
+    }
+  };
+  const readMap = name => {
+    try {
+      const value = JSON.parse(localStorage.getItem(storageKey(name)) || '{}');
+      return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+    } catch {
+      return {};
     }
   };
 
@@ -41,13 +50,111 @@
     recentSearches: readList('recent-searches'),
     conversationHistory: deduplicateConversationHistory(readList('conversation-history')),
     searchActive: false,
+    searchHasResults: false,
     activePhrase: null,
     previousScreen: 'home',
     reviewItems: [],
     reviewIndex: 0,
     kanaScript: 'hiragana',
-    kanaGroup: 'basic'
+    kanaGroup: 'basic',
+    conversationMode: 'listen',
+    conversationSituation: '전체',
+    conversationPickerOpen: false,
+    conversationPhraseQuery: '',
+    pronunciationStyle: localStorage.getItem(storageKey('pronunciation-style')) === 'roman' ? 'roman' : 'hangul',
+    bookmarkCategories: readMap('bookmark-categories'),
+    bookmarkFilter: 'all',
+    trip: readMap('trip'),
+    rehearsalPhrase: null,
+    rehearsalStage: 0,
+    rehearsalSpokenText: ''
   };
+
+  const conversationReplyGuide = [
+    { situations: ['전체'], patterns: [/^(かしこまりました|畏まりました)$/], japanese: 'かしこまりました', pronunciation: '카시코마리마시타', korean: '알겠습니다. 요청을 정중하게 받아들였다는 뜻이에요.', keywords: ['매우 정중한 “알겠습니다”'], next: ['ありがとうございます。', 'はい、お願いします。'] },
+    { situations: ['전체'], patterns: [/^(わかりました|分かりました|分りました|しょうちしました|承知しました)$/], japanese: '分かりました', pronunciation: '와카리마시타', korean: '알겠습니다. 내용을 이해했거나 요청을 받아들였다는 뜻이에요.', keywords: ['요청 수락', '일상·서비스 상황'], next: ['ありがとうございます。', 'はい、お願いします。'] },
+    { situations: ['식당', '카페'], patterns: [/満席/, /席.*(ありません|ない)/], japanese: '満席です', pronunciation: '만세키데스', korean: '만석이에요. 지금은 빈자리가 없다는 뜻이에요.', keywords: ['빈자리 없음', '대기 가능 여부 확인'], next: ['どのくらい待ちますか？', '予約できますか？'] },
+    { situations: ['식당', '카페'], patterns: [/少々お待ちください/, /少しお待ちください/, /お待ちください/], japanese: '少々お待ちください', pronunciation: '쇼오쇼오 오마치 쿠다사이', korean: '잠시 기다려 주세요.', keywords: ['대기 요청'], next: ['はい、分かりました。', 'どのくらい待ちますか？'] },
+    { situations: ['식당', '쇼핑', '카페'], patterns: [/現金のみ/, /現金だけ/], japanese: '現金のみです', pronunciation: '겐킨노미데스', korean: '현금만 가능합니다.', keywords: ['현금 결제만 가능'], next: ['現金で払います。', 'ATMはどこですか？'] },
+    { situations: ['식당', '쇼핑', '카페'], patterns: [/カード.*(使えます|大丈夫)/, /カード.*(いいです|可能)/], japanese: 'カードは使えます', pronunciation: '카아도와 츠카에마스', korean: '카드 결제가 가능합니다.', keywords: ['카드 결제 가능'], next: ['カードで払います。', 'ありがとうございます。'] },
+    { situations: ['교통', '길 묻기'], patterns: [/右/, /左/, /まっすぐ/], japanese: '右・左・まっすぐ', pronunciation: '미기 · 히다리 · 맛스구', korean: '길을 안내하는 말이에요. 각각 오른쪽·왼쪽·직진이라는 뜻입니다.', keywords: ['방향 안내'], next: ['もう一度お願いします。', '地図で見せてもらえますか？'] },
+    { situations: ['교통'], patterns: [/次/, /終点/, /乗り換え/], japanese: '次・終点・乗り換え', pronunciation: '츠기 · 슈우텐 · 노리카에', korean: '다음 역·종점·환승과 관련된 안내예요.', keywords: ['전철 안내'], next: ['何番線ですか？', 'もう一度お願いします。'] },
+    { situations: ['숙소'], patterns: [/パスポート/, /予約.*(確認|名前)/], japanese: 'パスポート・予約', pronunciation: '파스포오토 · 요야쿠', korean: '여권 또는 예약 확인을 요청하는 안내예요.', keywords: ['여권', '예약 확인'], next: ['予約しています。', 'パスポートを見せます。'] },
+    { situations: ['쇼핑'], patterns: [/試着/, /サイズ/, /在庫/], japanese: '試着・サイズ・在庫', pronunciation: '시차쿠 · 사이즈 · 자이코', korean: '착용·사이즈·재고와 관련된 안내예요.', keywords: ['쇼핑 안내'], next: ['別のサイズはありますか？', 'ありがとうございます。'] },
+    { situations: ['전체', '병원·약국'], patterns: [/頭.*痛/, /頭が痛い/], japanese: '頭が痛いです', pronunciation: '아타마가 이타이데스', korean: '머리가 아파요.', keywords: ['두통', '약국·병원에서 사용'], next: ['薬をください。', '病院はどこですか？'] },
+    { situations: ['전체', '병원·약국'], patterns: [/お腹.*痛/, /腹.*痛/], japanese: 'お腹が痛いです', pronunciation: '오나카가 이타이데스', korean: '배가 아파요.', keywords: ['복통', '약국·병원에서 사용'], next: ['薬をください。', '病院はどこですか？'] },
+    { situations: ['전체', '병원·약국'], patterns: [/熱.*(あります|です)/], japanese: '熱があります', pronunciation: '네츠가 아리마스', korean: '열이 있어요.', keywords: ['발열', '증상이 심하면 119'], next: ['病院はどこですか？', '救急車を呼んでください。'] }
+  ];
+
+  const situationReplyPreview = {
+    '전체': [conversationReplyGuide[0], conversationReplyGuide[1]],
+    식당: [conversationReplyGuide[2], conversationReplyGuide[3]],
+    교통: [conversationReplyGuide[6], conversationReplyGuide[7]],
+    숙소: [conversationReplyGuide[8], conversationReplyGuide[1]],
+    쇼핑: [conversationReplyGuide[5], conversationReplyGuide[9]]
+  };
+
+  // 초급자가 바로 말하기 어려운 존경·겸양 표현은 같은 뜻의 쉬운 표현으로 통일한다.
+  const beginnerAlternatives = {
+    'お水をいただけますか？': ['お水をください。', '오미즈오 쿠다사이.'],
+    '写真を撮っていただけますか？': ['写真を撮ってください。', '샤신오 톳테 쿠다사이.'],
+    'タクシーを呼んでいただけますか？': ['タクシーを呼んでください。', '타쿠시이오 욘데 쿠다사이.'],
+    '地図で見せてもらえますか？': ['地図で見せてください。', '치즈데 미세테 쿠다사이.'],
+    'Wi-Fiのパスワードを教えてください。': ['Wi-Fiのパスワードは何ですか？', '와이파이노 파스와아도와 난데스카?'],
+    '医者に診てもらいたいです。': ['お医者さんはいますか？', '오이샤상와 이마스카?'],
+    'この薬の飲み方を教えてください。': ['この薬はどう飲みますか？', '코노 쿠스리와 도오 노미마스카?'],
+    '日本語の説明が分かりません。': ['ゆっくり話してください。', '윳쿠리 하나시테 쿠다사이.'],
+    '手荷物検査はどこですか？': ['荷物検査はどこですか？', '니모츠 켄사와 도코데스카?'],
+    'チェックインカウンターはどこですか？': ['チェックインはどこですか？', '첵쿠인와 도코데스카?']
+  };
+  phrases.forEach(phrase => {
+    const alternative = beginnerAlternatives[phrase.jp];
+    if (alternative) [phrase.jp, phrase.romaji] = alternative;
+  });
+
+  const kanaRoman = { あ:'a',い:'i',う:'u',え:'e',お:'o',か:'ka',き:'ki',く:'ku',け:'ke',こ:'ko',が:'ga',ぎ:'gi',ぐ:'gu',げ:'ge',ご:'go',さ:'sa',し:'shi',す:'su',せ:'se',そ:'so',ざ:'za',じ:'ji',ず:'zu',ぜ:'ze',ぞ:'zo',た:'ta',ち:'chi',つ:'tsu',て:'te',と:'to',だ:'da',で:'de',ど:'do',な:'na',に:'ni',ぬ:'nu',ね:'ne',の:'no',は:'ha',ひ:'hi',ふ:'fu',へ:'he',ほ:'ho',ば:'ba',び:'bi',ぶ:'bu',べ:'be',ぼ:'bo',ぱ:'pa',ぴ:'pi',ぷ:'pu',ぺ:'pe',ぽ:'po',ま:'ma',み:'mi',む:'mu',め:'me',も:'mo',や:'ya',ゆ:'yu',よ:'yo',ら:'ra',り:'ri',る:'ru',れ:'re',ろ:'ro',わ:'wa',を:'o',ん:'n',ゃ:'ya',ゅ:'yu',ょ:'yo',ぁ:'a',ぃ:'i',ぇ:'e',ぉ:'o',ゔ:'vu',きゃ:'kya',きゅ:'kyu',きょ:'kyo',ぎゃ:'gya',ぎゅ:'gyu',ぎょ:'gyo',しゃ:'sha',しゅ:'shu',しょ:'sho',じゃ:'ja',じゅ:'ju',じょ:'jo',ちゃ:'cha',ちゅ:'chu',ちょ:'cho',にゃ:'nya',にゅ:'nyu',にょ:'nyo',ひゃ:'hya',ひゅ:'hyu',ひょ:'hyo',びゃ:'bya',びゅ:'byu',びょ:'byo',ぴゃ:'pya',ぴゅ:'pyu',ぴょ:'pyo',みゃ:'mya',みゅ:'myu',みょ:'myo',りゃ:'rya',りゅ:'ryu',りょ:'ryo',てぃ:'ti',でぃ:'di',ふぁ:'fa',ふぃ:'fi',ふぇ:'fe',ふぉ:'fo',うぃ:'wi',うぇ:'we',うぉ:'wo' };
+  const hangulOnset = ['g','kk','n','d','tt','r','m','b','pp','s','ss','','j','jj','ch','k','t','p','h'];
+  const hangulVowel = ['a','ae','ya','yae','o','e','yeo','ye','o','wa','wae','oe','yo','u','wo','we','wi','yu','eu','ui','i'];
+  const hangulCoda = ['', 'k', 'k', 'k', 'n', 'n', 'n', 't', 'l', 'k', 'm', 'p', 'l', 'l', 'l', 'l', 'm', 'p', 't', 't', 'ng', 't', 't', 'k', 't', 'p', 't', 't'];
+  const kanaByRoman = Object.fromEntries(Object.entries(kanaRoman).map(([kana, roman]) => [roman, kana]));
+  Object.assign(kanaByRoman, { a:'あ', i:'い', u:'う', e:'え', o:'お', ya:'や', yu:'ゆ', yo:'よ', wa:'わ', wo:'を', n:'ん' });
+  const koreanKana = { 스:'す', 즈:'ず', 츠:'つ', 시:'し', 지:'じ', 샤:'しゃ', 슈:'しゅ', 쇼:'しょ', 쟈:'じゃ', 쥬:'じゅ', 죠:'じょ', 체:'ちぇ', 치:'ち', 테:'て', 데:'で', 티:'てぃ', 디:'でぃ', 후:'ふ', 히:'ひ', 후:'ふ', 푸:'ぷ', 부:'ぶ', 윳:'ゆっ', 윳:'ゆっ', 으:'う', 외:'え', 웨:'え', 워:'を', 위:'うぃ' };
+
+  function koreanReadingToHiragana(reading = '') {
+    return [...String(reading)].map(character => {
+      if (koreanKana[character]) return koreanKana[character];
+      const code = character.codePointAt(0);
+      if (code < 0xac00 || code > 0xd7a3) return character;
+      const index = code - 0xac00;
+      const onset = hangulOnset[Math.floor(index / 588)];
+      const vowel = hangulVowel[Math.floor((index % 588) / 28)];
+      const coda = hangulCoda[index % 28];
+      const syllable = onset + vowel;
+      const kana = kanaByRoman[syllable] || kanaByRoman[vowel] || character;
+      const tail = coda === 'ng' || coda === 'n' || coda === 'm' ? 'ん' : coda ? 'っ' : '';
+      return kana + tail;
+    }).join('').replace(/[?？]/g, '？');
+  }
+
+  function romanizeKana(kana = '') {
+    let result = '';
+    for (let index = 0; index < kana.length; index += 1) {
+      const pair = kana.slice(index, index + 2);
+      if (pair === 'っ') { result += 't'; continue; }
+      if (kana[index] === 'っ') { result += kanaRoman[kana[index + 1]]?.[0] || ''; continue; }
+      if (kanaRoman[pair]) { result += kanaRoman[pair]; index += 1; continue; }
+      result += kanaRoman[kana[index]] || kana[index];
+    }
+    return result;
+  }
+
+  function displayPronunciation(reading = '') {
+    return state.pronunciationStyle === 'roman' ? romanizeKana(koreanReadingToHiragana(reading)) : reading;
+  }
+
+  function japaneseWithYomi(japanese, reading) {
+    return `<ruby>${escapeHtml(japanese)}<rt>${escapeHtml(koreanReadingToHiragana(reading))}</rt></ruby>`;
+  }
 
   const buildKana = rows => rows.flatMap(row => row.split(' ').map(item => item.split(':')));
   const kana = {
@@ -75,14 +182,60 @@
     역: ['역까지 가기', '전철', '지하철', '택시', '막차'], 택시: ['역까지', '택시 승강장', '여기서 내리기', '목적지'],
     주문: ['메뉴', '추천 메뉴', '알레르기', '포장', '계산'], 계산: ['따로 계산', '카드 결제', '현금', '영수증'],
     호텔: ['체크인', '체크아웃', '예약', '와이파이', '수건'], 공항: ['탑승구', '수하물', '환승', '보안 검색', '환전'],
-    병원: ['약국', '머리 아파요', '배 아파요', '약', '구급차'], 쇼핑: ['가격', '카드', '면세', '사이즈', '영수증']
+    병원: ['약국', '머리 아파요', '배 아파요', '약', '구급차'], 쇼핑: ['가격', '카드', '면세', '사이즈', '영수증'],
+    헬리콥터: ['비행기', '공항', '탑승구', '구급차']
   };
+  // 문장에 드러나지 않는 여행자 표현은 표현 단위 키워드로 보완한다.
+  const phraseSearchKeywords = {
+    '식당-0': ['물', '물주세요', '식수'], '식당-1': ['메뉴판', '메뉴주세요'], '식당-2': ['추천', '추천메뉴'], '식당-4': ['알레르기', '음식알레르기'], '식당-6': ['포장', '테이크아웃'], '식당-7': ['계산', '결제', '식사계산'], '식당-8': ['따로계산', '분할결제'],
+    '교통-0': ['역', '역까지'], '교통-2': ['표', '승차권'], '교통-3': ['교통카드', 'ic카드', '스이카'], '교통-5': ['막차', '막차시간'], '교통-6': ['택시', '택시승강장'],
+    '쇼핑-0': ['가격', '얼마'], '쇼핑-1': ['카드', '카드결제', '신용카드'], '쇼핑-4': ['면세', '택스프리'], '쇼핑-7': ['영수증'], '쇼핑-9': ['현금', '현금결제'],
+    '숙소-0': ['체크인', '호텔체크인'], '숙소-2': ['체크아웃'], '숙소-5': ['와이파이', 'wifi', '비밀번호'], '숙소-9': ['택시', '택시불러줘'],
+    '길 묻기-0': ['역', '역어디'], '길 묻기-1': ['화장실', '화장실어디'], '길 묻기-3': ['지도', '길찾기'], '길 묻기-6': ['버스정류장'], '길 묻기-9': ['길잃음', '길을잃었어요'],
+    '긴급 상황-0': ['도움', '도와줘'], '긴급 상황-1': ['경찰'], '긴급 상황-2': ['구급차', '응급차'], '긴급 상황-3': ['병원'], '긴급 상황-5': ['약국'], '긴급 상황-6': ['지갑분실'], '긴급 상황-7': ['여권분실'],
+    '공항-0': ['체크인', '체크인카운터'], '공항-1': ['탑승구', '게이트'], '공항-3': ['수하물', '짐부치기'], '공항-4': ['보안검색'], '공항-5': ['환승'], '공항-7': ['환전'],
+    '관광지-0': ['입장권', '티켓'], '관광지-5': ['화장실'], '관광지-6': ['출구'], '카페-0': ['커피'], '카페-2': ['포장', '테이크아웃'], '카페-9': ['와이파이', 'wifi'],
+    '병원·약국-0': ['의사', '진료'], '병원·약국-1': ['두통', '머리아파요'], '병원·약국-2': ['복통', '배아파요'], '병원·약국-4': ['약'], '병원·약국-8': ['약국']
+  };
+  // 등록 표현에는 없지만 여행 중 자주 입력하는 키워드 100개와 탐색용 연관어.
+  const additionalRelatedSearches = Object.fromEntries([
+    { terms: ['라멘', '스시', '우동', '야키니쿠', '이자카야', '채식', '어린이메뉴', '맵지않게', '젓가락', '물티슈'], related: ['식당', '메뉴', '추천 메뉴', '주문', '계산'] },
+    { terms: ['신칸센', '특급열차', '노선도', '개찰구', '환승시간', '막차시간', '좌석예약', '캐리어', '교통패스', '버스카드'], related: ['교통', '전철', '표', '환승', '택시'] },
+    { terms: ['돈키호테', '드럭스토어', '할인', '쿠폰', '포인트', '선물포장', '택스리펀드', '재고', '환불', '면세한도'], related: ['쇼핑', '가격', '카드', '면세', '영수증'] },
+    { terms: ['룸서비스', '세탁', '에어컨', '난방', '금연실', '흡연실', '어댑터', '충전기', '짐보관', '늦은체크인'], related: ['숙소', '체크인', '체크아웃', '와이파이', '수건'] },
+    { terms: ['엘리베이터', '에스컬레이터', '계단', '코인락커', '관광안내소', '횡단보도', '신호등', '출구번호', '길건너', '편의점위치'], related: ['길 묻기', '지도', '역', '출구', '버스 정류장'] },
+    { terms: ['분실물', '소매치기', '여권재발급', '카드분실', '지진', '태풍', '화재', '응급실', '신고', '안전'], related: ['긴급 상황', '경찰', '구급차', '병원', '도움'] },
+    { terms: ['수하물초과', '기내수하물', '액체류', '출국심사', '입국심사', '세관', '보딩타임', '탑승권', '좌석변경', '항공편취소'], related: ['공항', '탑승구', '수하물', '환승', '환전'] },
+    { terms: ['오픈시간', '휴관일', '예약필수', '오디오가이드', '전망대', '박물관', '신사', '온천', '벚꽃', '야경'], related: ['관광지', '입장권', '사진', '출구', '가이드'] },
+    { terms: ['디카페인', '오트밀크', '시럽', '테라스', '콘센트', '리필', '뜨거운물', '아이스', '주문번호', '와이파이비번'], related: ['카페', '커피', '음료', '포장', '추천 메뉴'] },
+    { terms: ['감기', '기침', '인후통', '설사', '멀미', '생리통', '소독약', '밴드', '처방전', '알약'], related: ['병원·약국', '의사', '약국', '약', '구급차'] }
+  ].flatMap(({ terms, related }) => terms.map(term => [term, related])));
+  Object.assign(relatedSearches, additionalRelatedSearches);
+  const moreRelatedSearches = Object.fromEntries([
+    { terms: ['모닝세트', '정식', '뷔페', '예약시간', '웨이팅', '바자리', '창가자리', '유아의자', '반찬', '소스', '와사비', '식전주', '디저트', '얼음물', '뜨거운차', '음식사진', '포장용기', '알레르겐', '글루텐프리', '계산서'], related: ['식당', '메뉴', '추천 메뉴', '주문', '계산'] },
+    { terms: ['자유석', '지정석', '그린카', '플랫폼', '승강장번호', '출발시간', '도착시간', '첫차', '왕복표', '편도표', '어린이요금', '교통앱', '택시요금', '택시앱', '버스시간표', '공항리무진', '자전거대여', '렌터카', '주차장', '통행료'], related: ['교통', '전철', '표', '환승', '택시'] },
+    { terms: ['백화점', '아울렛', '시장', '기념품', '한정판', '색상', '사이즈교환', '시착실', '포장지', '쇼핑백', '셀프계산대', '현금인출', 'atm', '동전', '잔돈', '세일기간', '가격표', '바코드', '전자영수증', '해외카드'], related: ['쇼핑', '가격', '카드', '면세', '영수증'] },
+    { terms: ['조식시간', '조식장소', '침대추가', '베개', '이불', '샴푸', '드라이기', '냉장고', '전자레인지', '정수기', '수영장', '헬스장', '프런트', '체크아웃연장', '얼리체크인', '객실청소', '방교체', '소음', '고장', '비상구'], related: ['숙소', '체크인', '체크아웃', '와이파이', '수건'] },
+    { terms: ['지하통로', '육교', '지하철출구', '역무원', '버스정류장번호', '택시정류장', '공중화장실', '흡연구역', '쓰레기통', '코인세탁', '우체국', '은행', '환전소위치', '약국위치', '슈퍼마켓', '공원', '광장', '해변', '항구', '터미널'], related: ['길 묻기', '지도', '역', '출구', '버스 정류장'] },
+    { terms: ['분실신고', '도난신고', '보험', '여행자보험', '대사관', '영사관', '비상연락처', '휴대폰분실', '여권사본', '현금분실', '부상', '출혈', '골절', '알레르기반응', '호흡곤란', '고열', '중독', '폭우', '피난소', '경보'], related: ['긴급 상황', '경찰', '구급차', '병원', '도움'] },
+    { terms: ['온라인체크인', '여권검사', '출발층', '도착층', '항공사카운터', '면세점', '라운지', '보안검사', '보조배터리', '위탁수하물', '수하물벨트', '수하물분실', '환승게이트', '비자', '입국카드', '검역', '지연증명서', '결항', '탑승마감', '우선탑승'], related: ['공항', '탑승구', '수하물', '환승', '환전'] },
+    { terms: ['테마파크', '수족관', '동물원', '미술관', '전시회', '축제', '불꽃놀이', '야시장', '전통시장', '기념관', '성', '정원', '등산', '케이블카', '유람선', '투어버스', '집합장소', '입장시간', '재입장', '사진금지'], related: ['관광지', '입장권', '사진', '출구', '가이드'] },
+    { terms: ['아메리카노', '라떼', '말차', '차이라떼', '과일주스', '탄산수', '빵', '케이크', '샌드위치', '알레르기우유', '무설탕', '샷추가', '휘핑크림', '테이크아웃컵', '매장컵', '빨대', '냅킨', '좌석여유', '조용한자리', '반려동물'], related: ['카페', '커피', '음료', '포장', '추천 메뉴'] },
+    { terms: ['두통약', '진통제', '해열제', '감기약', '소화제', '멀미약', '알레르기약', '안약', '피부약', '연고', '마스크', '체온계', '혈압', '당뇨', '임신', '소아과', '치과', '피부과', '정형외과', '건강보험'], related: ['병원·약국', '의사', '약국', '약', '구급차'] }
+  ].flatMap(({ terms, related }) => terms.map(term => [term, related])));
+  Object.assign(relatedSearches, moreRelatedSearches);
+
+  function bookmarkCategory(phrase) {
+    return state.bookmarkCategories[phrase.id] || phrase.cat;
+  }
 
   function saveState() {
     localStorage.setItem(storageKey('favorites'), JSON.stringify(state.favorites));
     localStorage.setItem(storageKey('views'), JSON.stringify(state.views));
     localStorage.setItem(storageKey('recent-searches'), JSON.stringify(state.recentSearches));
     localStorage.setItem(storageKey('conversation-history'), JSON.stringify(state.conversationHistory));
+    localStorage.setItem(storageKey('bookmark-categories'), JSON.stringify(state.bookmarkCategories));
+    localStorage.setItem(storageKey('trip'), JSON.stringify(state.trip));
   }
 
   function record(name, data = {}) {
@@ -104,7 +257,38 @@
     $('.topbar').hidden = screen !== 'home';
     $$('.nav-item').forEach(button => button.classList.toggle('active', button.dataset.nav === activeNav));
     if (screen === 'profile') renderProfile();
+    if (screen === 'conversation') setConversationMode(state.conversationMode);
+    if (screen === 'home') renderTripHome();
+    if (screen === 'trip-pack') renderTripPack();
+    if (screen === 'travel-mode') renderTravelMode();
     window.scrollTo(0, 0);
+  }
+
+  function setConversationMode(mode) {
+    state.conversationMode = mode === 'speak' ? 'speak' : 'listen';
+    const isSpeak = state.conversationMode === 'speak';
+    $$('.conversation-toggle button').forEach(button => button.classList.toggle('active', button.dataset.mode === state.conversationMode));
+    $('#conversation-title').textContent = isSpeak ? '한국어를 일본어로 말하기' : '상대방 답변 이해하기';
+    $('#conversation-input').placeholder = isSpeak
+      ? '말하고 싶은 한국어를 입력하거나 마이크를 눌러 말하세요.'
+      : '상대방이 말한 일본어를 입력하거나 마이크를 눌러 녹음하세요.';
+    $('#conversation-record').setAttribute('aria-label', isSpeak ? '한국어로 말하기' : '일본어 답변 녹음');
+    $('#conversation-record').textContent = '● 말하기';
+    $('#conversation-analyze').textContent = isSpeak ? '일본어로 만들기' : '이해하기';
+    $('#conversation-note').textContent = isSpeak
+      ? '한국어를 말하면 바로 보여주고 들려줄 수 있어요.'
+      : '마이크를 누르면 일본어 음성을 텍스트로 받아와요.';
+    renderConversationPicker();
+  }
+
+  function setConversationSituation(situation) {
+    state.conversationSituation = situationReplyPreview[situation] ? situation : '전체';
+    $$('.situation-picker button').forEach(button => button.classList.toggle('active', button.dataset.situation === state.conversationSituation));
+    const label = state.conversationSituation === '전체' ? '모든 여행 상황' : `${state.conversationSituation} 상황`;
+    $('#conversation-note').textContent = `${label}에 맞춰 자주 쓰는 답변과 다음 문장을 안내해요.`;
+    $('#conversation-result').hidden = true;
+    renderConversationPicker();
+    record('conversation_situation_selected', { situation: state.conversationSituation });
   }
 
   function speak(text) {
@@ -124,16 +308,24 @@
     return phrases.find(phrase => phrase.id === id);
   }
 
-  function phraseCard(phrase) {
+  function phraseCard(phrase, searchReason = '') {
+    const saved = state.favorites.includes(phrase.id);
     return `<article class="phrase-card" data-action="open-phrase" data-id="${phrase.id}" role="button" tabindex="0" aria-label="${phrase.jp} 자세히 보기">
-      <div class="jp">${phrase.jp}</div>
-      <div class="pronunciation">${phrase.romaji}</div>
+      <div class="jp">${japaneseWithYomi(phrase.jp, phrase.romaji)}</div>
+      <div class="pronunciation">${displayPronunciation(phrase.romaji)}</div>
       <div class="ko">${phrase.ko}</div>
+      ${searchReason ? `<div class="search-match">${searchReason}</div>` : ''}
       <div class="phrase-actions">
         <button class="icon-action" data-action="speak" data-id="${phrase.id}" aria-label="${phrase.jp} 듣기" title="일본어 듣기">${icons.listen}</button>
-        <button class="icon-action" data-action="copy-phrase" data-id="${phrase.id}" aria-label="${phrase.jp} 복사하기" title="일본어 복사하기">${icons.copy}</button>
+        <button class="icon-action ${saved ? 'is-active' : ''}" data-action="toggle-favorite" data-id="${phrase.id}" aria-label="${phrase.jp} ${saved ? '북마크 해제' : '북마크'}" title="북마크">${icons.bookmark}</button>
       </div>
     </article>`;
+  }
+
+  function quickWordPreview(category) {
+    const words = quickWords[category] || [];
+    if (!words.length) return '';
+    return `<section class="quick-word-preview"><div class="quick-word-preview-heading"><div><p class="eyebrow">QUICK WORDS</p><h2>이 상황에서 바로 쓰는 단어</h2></div><button data-action="open-quick-words" data-category="${category}">전체 보기 ›</button></div><div class="quick-word-preview-grid">${words.slice(0, 4).map(([japanese, reading, korean]) => `<article class="quick-word-preview-card"><strong>${japaneseWithYomi(japanese, reading)}</strong><span>${displayPronunciation(reading)}</span><small>${korean}</small><button class="icon-action" data-action="speak-word" data-text="${japanese}" aria-label="${japanese} 듣기" title="일본어 듣기">${icons.listen}</button></article>`).join('')}</div></section>`;
   }
 
   function renderCategories() {
@@ -141,6 +333,243 @@
       <button class="category-card" data-action="open-category" data-category="${name}" style="--card:${color}">
         <span class="emoji">${icon}</span><strong>${name}</strong><small>${description} · ${phrases.filter(phrase => phrase.cat === name).length}개</small>
       </button>`).join('');
+  }
+
+  const tripCategoryMap = { 공항: ['공항'], 식당: ['식당', '카페'], 교통: ['교통', '길 묻기'], 숙소: ['숙소'], 쇼핑: ['쇼핑'], 관광지: ['관광지'] };
+  const itineraryOptions = ['공항', '숙소', '식당', '교통', '관광지', '쇼핑'];
+  const cityPhrases = {
+    도쿄: { id: 'city-tokyo', cat: '도쿄에서 바로 쓰는 말', jp: '東京駅に行きたいです。', romaji: '토오쿄오에키니 이키타이데스.', ko: '도쿄역에 가고 싶어요.', use: '도쿄에서 역과 전철을 이용할 때 바로 말해요.', note: '역 이름은 지도 화면을 함께 보여 주면 더 정확해요.' },
+    오사카: { id: 'city-osaka', cat: '오사카에서 바로 쓰는 말', jp: '大阪城に行きたいです。', romaji: '오오사카조오니 이키타이데스.', ko: '오사카성에 가고 싶어요.', use: '오사카 관광지로 가는 길을 물을 때 바로 말해요.', note: '목적지는 지도 화면을 함께 보여 주면 더 정확해요.' },
+    후쿠오카: { id: 'city-fukuoka', cat: '후쿠오카에서 바로 쓰는 말', jp: '博多駅に行きたいです。', romaji: '하카타에키니 이키타이데스.', ko: '하카타역에 가고 싶어요.', use: '후쿠오카에서 하카타역으로 가는 길을 물을 때 바로 말해요.', note: '목적지는 지도 화면을 함께 보여 주면 더 정확해요.' },
+    삿포로: { id: 'city-sapporo', cat: '삿포로에서 바로 쓰는 말', jp: '札幌駅に行きたいです。', romaji: '삿포로에키니 이키타이데스.', ko: '삿포로역에 가고 싶어요.', use: '삿포로에서 역으로 가는 길을 물을 때 바로 말해요.', note: '목적지는 지도 화면을 함께 보여 주면 더 정확해요.' },
+    교토: { id: 'city-kyoto', cat: '교토에서 바로 쓰는 말', jp: '京都駅に行きたいです。', romaji: '쿄오토에키니 이키타이데스.', ko: '교토역에 가고 싶어요.', use: '교토에서 역과 버스를 이용할 때 바로 말해요.', note: '버스 정류장과 목적지를 지도에서 함께 보여 주세요.' }
+  };
+  Object.values(cityPhrases).forEach(phrase => { if (!phrases.some(item => item.id === phrase.id)) phrases.push(phrase); });
+
+  function tripPhraseIds() {
+    const interests = Array.isArray(state.trip.interests) && state.trip.interests.length ? state.trip.interests : ['식당', '교통', '숙소'];
+    const itinerary = Array.isArray(state.trip.itinerary) ? state.trip.itinerary : [];
+    const itineraryCategories = itinerary.flatMap(day => day.scenarios || []);
+    const categories = [...new Set([...itineraryCategories, ...interests])].flatMap(interest => tripCategoryMap[interest] || []);
+    const chosen = categories.flatMap(category => phrases.filter(phrase => phrase.cat === category).slice(0, 3)).slice(0, 22);
+    const essentials = phrases.filter(phrase => phrase.cat === '긴급 상황').slice(0, 2);
+    const cityPhrase = cityPhrases[state.trip.city];
+    return [...new Map([cityPhrase, ...chosen, ...essentials].filter(Boolean).map(phrase => [phrase.id, phrase])).values()].map(phrase => phrase.id);
+  }
+
+  function formatTripDate(value) {
+    if (!value) return '출발일 미정';
+    const date = new Date(`${value}T00:00:00`);
+    return Number.isNaN(date.getTime()) ? '출발일 미정' : `${date.getMonth() + 1}월 ${date.getDate()}일 출발`;
+  }
+
+  function activeItineraryDay() {
+    const itinerary = Array.isArray(state.trip.itinerary) && state.trip.itinerary.length ? state.trip.itinerary : defaultItinerary(state.trip.duration || 3);
+    if (!state.trip.date) return itinerary[0];
+    const start = new Date(`${state.trip.date}T00:00:00`);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const index = Math.floor((today - start) / 86400000);
+    return itinerary[Math.max(0, Math.min(itinerary.length - 1, index))];
+  }
+
+  function scenarioForCategory(category = '') {
+    if (category === '카페' || category === '식당') return '식당';
+    if (category === '길 묻기' || category === '교통') return '교통';
+    return itineraryOptions.includes(category) ? category : null;
+  }
+
+  function nextSituationRecommendation() {
+    const day = activeItineraryDay();
+    const scenarios = day?.scenarios?.length ? day.scenarios : state.trip.interests || ['식당'];
+    const lastPhrase = findPhrase(state.views[0]);
+    const current = scenarioForCategory(lastPhrase?.cat);
+    const currentIndex = scenarios.indexOf(current);
+    const next = scenarios[currentIndex >= 0 && currentIndex < scenarios.length - 1 ? currentIndex + 1 : 0] || '식당';
+    return { day: day?.day || 1, scenario: next };
+  }
+
+  function renderTripHome() {
+    const host = $('#trip-home');
+    if (!state.trip.ready) {
+      host.innerHTML = `<section class="trip-hero"><p class="eyebrow">MY JAPAN TRIP</p><h1>일본 여행에서<br /><em>당황하지 않게.</em></h1><p>도시와 필요한 상황을 고르면, 말하기와 예상 답변을 한 팩으로 준비해 드려요.</p><button class="trip-primary" data-action="start-trip">내 여행팩 만들기</button><small>약 30초 · 가입 없이 저장돼요</small></section>`;
+      return;
+    }
+    const count = tripPhraseIds().length;
+    host.innerHTML = `<section class="trip-ready-card"><div class="trip-ready-top"><p class="eyebrow">MY TRAVEL PACK</p><span>${escapeHtml(state.trip.city || '일본')} · ${formatTripDate(state.trip.date)}</span></div><h2>${escapeHtml(state.trip.city || '일본')} 여행 말하기 팩</h2><p>필요한 말과 예상 답변을 여행 전에 준비해 두세요.</p><div class="trip-ready-bottom"><span class="trip-ready-count"><b>${count}</b>개 실전 표현</span><button data-action="open-trip-pack">여행팩 열기 <b>›</b></button></div></section>`;
+  }
+
+  function fillTripForm() {
+    $('#trip-city').value = state.trip.city || '도쿄';
+    $('#trip-date').value = state.trip.date || '';
+    $('#trip-duration').value = String(state.trip.duration || 3);
+    const interests = state.trip.interests || ['식당', '교통', '숙소'];
+    $$('input[name="trip-interest"]').forEach(input => { input.checked = interests.includes(input.value); });
+    renderItineraryBuilder();
+  }
+
+  function defaultItinerary(duration) {
+    return Array.from({ length: duration }, (_, index) => {
+      if (index === 0) return { day: index + 1, scenarios: ['공항', '숙소'] };
+      if (index === duration - 1 && duration > 1) return { day: index + 1, scenarios: ['쇼핑', '공항'] };
+      return { day: index + 1, scenarios: ['관광지', '식당'] };
+    });
+  }
+
+  function itineraryDayLabel(index) {
+    const value = $('#trip-date').value;
+    if (!value) return `${index + 1}일 차`;
+    const date = new Date(`${value}T00:00:00`);
+    date.setDate(date.getDate() + index);
+    return `${date.getMonth() + 1}월 ${date.getDate()}일 · ${index + 1}일 차`;
+  }
+
+  function renderItineraryBuilder() {
+    const duration = Number($('#trip-duration').value || 3);
+    const stored = Array.isArray(state.trip.itinerary) && state.trip.itinerary.length === duration ? state.trip.itinerary : defaultItinerary(duration);
+    $('#itinerary-builder').innerHTML = stored.map((day, index) => `<section class="itinerary-day"><p>${itineraryDayLabel(index)}</p><div>${itineraryOptions.map(scenario => `<label><input type="checkbox" data-itinerary-scenario data-day="${index}" value="${scenario}" ${day.scenarios?.includes(scenario) ? 'checked' : ''} /><span>${scenario}</span></label>`).join('')}</div></section>`).join('');
+  }
+
+  function openTripSetup() {
+    state.previousScreen = $('.screen.active').id.replace('-screen', '');
+    fillTripForm();
+    navigate('trip-setup', '');
+  }
+
+  function saveTrip(event) {
+    event.preventDefault();
+    const interests = $$('input[name="trip-interest"]:checked').map(input => input.value);
+    if (!interests.length) {
+      showToast('한 가지 이상 선택해 주세요.');
+      return;
+    }
+    const duration = Number($('#trip-duration').value || 3);
+    const itinerary = Array.from({ length: duration }, (_, index) => ({ day: index + 1, scenarios: $$(`[data-itinerary-scenario][data-day="${index}"]:checked`).map(input => input.value) }));
+    state.trip = { ready: true, city: $('#trip-city').value, date: $('#trip-date').value, duration, interests, itinerary, createdAt: state.trip.createdAt || new Date().toISOString() };
+    saveState();
+    record('trip_pack_created', { city: state.trip.city, interests, duration, itinerary });
+    navigate('trip-pack', '');
+  }
+
+  function deleteTrip() {
+    if (!state.trip.ready) return;
+    const confirmed = window.confirm('이 여행팩을 삭제할까요? 저장한 북마크와 최근 기록은 유지됩니다.');
+    if (!confirmed) return;
+    const city = state.trip.city;
+    state.trip = {};
+    saveState();
+    record('trip_pack_deleted', { city });
+    showToast('여행팩을 삭제했어요.');
+    navigate('home');
+  }
+
+  function renderTripPack() {
+    const pack = tripPhraseIds().map(findPhrase).filter(Boolean);
+    $('#trip-pack-title').textContent = `${state.trip.city || '나의'} 여행 말하기 팩`;
+    $('#trip-pack-description').textContent = `${formatTripDate(state.trip.date)} · ${pack.length}개 표현을 미리 말해 보고, 상대 답변도 확인하세요.`;
+    $('#trip-pack-list').innerHTML = pack.length ? Object.entries(pack.reduce((groups, phrase) => {
+      const group = groups[phrase.cat] || [];
+      group.push(phrase);
+      groups[phrase.cat] = group;
+      return groups;
+    }, {})).map(([category, items]) => `<section class="trip-pack-group"><p class="eyebrow">${escapeHtml(category)}</p><h2>${escapeHtml(category)}에서 쓰는 말</h2>${items.map(phraseCard).join('')}</section>`).join('') : '<p class="profile-empty">여행 설정을 완료하면 말하기 팩이 만들어져요.</p>';
+    record('trip_pack_opened', { count: pack.length });
+  }
+
+  function renderTravelMode() {
+    const pack = tripPhraseIds().map(findPhrase).filter(Boolean);
+    const next = nextSituationRecommendation();
+    $('#travel-mode-list').innerHTML = pack.length ? `${pack.map(phrase => `<article class="travel-mode-card" data-action="open-phrase" data-id="${phrase.id}" role="button" tabindex="0"><span>${escapeHtml(phrase.cat)}</span><strong>${japaneseWithYomi(phrase.jp, phrase.romaji)}</strong><em>${escapeHtml(displayPronunciation(phrase.romaji))}</em><small>${escapeHtml(phrase.ko)}</small><div class="travel-mode-actions"><button class="icon-action" data-action="speak" data-id="${phrase.id}" aria-label="${escapeHtml(phrase.jp)} 듣기" title="일본어 듣기">${icons.listen}</button><button class="icon-action" data-action="copy-phrase" data-id="${phrase.id}" aria-label="${escapeHtml(phrase.jp)} 복사하기" title="일본어 복사하기">${icons.copy}</button><button class="icon-action ${state.favorites.includes(phrase.id) ? 'is-active' : ''}" data-action="toggle-favorite" data-id="${phrase.id}" aria-label="${escapeHtml(phrase.jp)} 북마크" title="북마크">${icons.bookmark}</button></div></article>`).join('')}<section class="travel-mode-next"><p class="eyebrow">DAY ${next.day} · NEXT UP</p><h2>이어서 ${escapeHtml(next.scenario)} 상황을 준비해요</h2><p>오늘의 일정과 방금 본 표현을 바탕으로 다음 상황을 추천했어요.</p><button data-action="start-rehearsal" data-scenario="${escapeHtml(next.scenario)}">${escapeHtml(next.scenario)} 리허설 시작 <b>›</b></button></section>` : '<p class="profile-empty">먼저 여행팩을 만들어 주세요.</p>';
+    record('travel_mode_opened', { count: pack.length });
+  }
+
+  async function shareTrip() {
+    if (!state.trip.ready) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set('tabi-city', state.trip.city || '일본');
+    if (state.trip.date) url.searchParams.set('tabi-date', state.trip.date);
+    url.searchParams.set('tabi-interests', (state.trip.interests || []).join(','));
+    const shareData = { title: `${state.trip.city || '일본'} 여행 말하기 팩`, text: '일본 여행에서 바로 쓸 표현을 함께 준비해요.', url: url.toString() };
+    try {
+      if (navigator.share) await navigator.share(shareData);
+      else {
+        await navigator.clipboard.writeText(shareData.url);
+        showToast('여행팩 링크를 복사했어요.');
+      }
+      record('trip_pack_shared', { city: state.trip.city });
+    } catch (error) {
+      if (error?.name !== 'AbortError') showToast('링크를 복사하지 못했어요.');
+    }
+  }
+
+  function openRehearsal(scenario = '') {
+    const pack = tripPhraseIds().map(findPhrase).filter(Boolean);
+    state.previousScreen = 'trip-pack';
+    state.rehearsalPhrase = null;
+    state.rehearsalStage = 0;
+    state.rehearsalSpokenText = '';
+    if (scenario) {
+      const category = (tripCategoryMap[scenario] || [scenario]).find(item => pack.some(phrase => phrase.cat === item));
+      if (category) { chooseRehearsal(category); navigate('rehearsal', ''); return; }
+    }
+    const categories = [...new Set(pack.map(phrase => phrase.cat))].slice(0, 6);
+    $('#rehearsal-content').innerHTML = `<section class="rehearsal-picker"><p class="eyebrow">CHOOSE A SITUATION</p><h2>어떤 상황을 연습할까요?</h2><div>${categories.map(category => `<button data-action="choose-rehearsal" data-category="${escapeHtml(category)}"><span>${escapeHtml(category)}</span><b>›</b></button>`).join('')}</div></section>`;
+    record('rehearsal_opened');
+    navigate('rehearsal', '');
+  }
+
+  function chooseRehearsal(category) {
+    state.rehearsalPhrase = tripPhraseIds().map(findPhrase).find(phrase => phrase?.cat === category) || null;
+    state.rehearsalStage = 0;
+    state.rehearsalSpokenText = '';
+    renderRehearsal();
+  }
+
+  function startRehearsalRecognition() {
+    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Recognition) {
+      showToast('이 브라우저에서는 음성 인식을 지원하지 않아요.');
+      return;
+    }
+    const recognition = new Recognition();
+    recognition.lang = 'ja-JP';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    const button = $('[data-action="rehearsal-record"]');
+    if (button) { button.textContent = '듣고 있어요…'; button.disabled = true; }
+    recognition.onresult = event => {
+      state.rehearsalSpokenText = event.results[0][0].transcript;
+      record('rehearsal_spoken', { id: state.rehearsalPhrase?.id });
+      renderRehearsal();
+    };
+    recognition.onerror = () => { showToast('음성을 인식하지 못했어요. 다시 말해 보세요.'); renderRehearsal(); };
+    recognition.start();
+  }
+
+  function renderRehearsal() {
+    const phrase = state.rehearsalPhrase;
+    if (!phrase) return;
+    const replies = phraseReplies(phrase).slice(0, 3);
+    const [replyJapanese, replyReading, replyKorean] = replies[0];
+    const stage = state.rehearsalStage;
+    const content = stage === 0
+      ? `<p class="eyebrow">STEP 1 · MY TURN</p><h2>${escapeHtml(phrase.ko)}</h2><p>이 말을 일본어로 해 보세요.</p><button class="rehearsal-primary" data-action="rehearsal-reveal">일본어 표현 확인하기</button>`
+      : stage === 1
+        ? `<p class="eyebrow">STEP 1 · MY TURN</p><h2>${japaneseWithYomi(phrase.jp, phrase.romaji)}</h2><p class="rehearsal-reading">${escapeHtml(displayPronunciation(phrase.romaji))}</p><p>${escapeHtml(phrase.ko)}</p>${state.rehearsalSpokenText ? `<p class="rehearsal-spoken">내가 말한 문장 · ${escapeHtml(state.rehearsalSpokenText)}</p>` : ''}<div class="rehearsal-actions rehearsal-actions-three"><button class="rehearsal-listen" data-action="speak" data-id="${phrase.id}">${icons.listen} 듣기</button><button class="rehearsal-listen" data-action="rehearsal-record">● 말해 보기</button><button class="rehearsal-primary" data-action="rehearsal-next">답변 듣기</button></div>`
+        : stage === 2
+          ? `<p class="eyebrow">STEP 2 · THEIR TURN</p><h2>상대는 이렇게 답할 수 있어요</h2><p>답변을 먼저 듣고, 아래 뜻과 발음을 확인해 보세요.</p><div class="rehearsal-replies">${replies.map(([japanese, reading, korean]) => `<article><strong>${japaneseWithYomi(japanese, reading)}</strong><span>${escapeHtml(displayPronunciation(reading))}</span><small>${escapeHtml(korean)}</small><button class="icon-action" data-action="speak-word" data-text="${escapeHtml(japanese)}" aria-label="${escapeHtml(japanese)} 듣기">${icons.listen}</button></article>`).join('')}</div><button class="rehearsal-primary" data-action="rehearsal-finish">리허설 완료</button>`
+          : `<p class="eyebrow">COMPLETE</p><h2>${escapeHtml(replyKorean)}</h2><p>${japaneseWithYomi(replyJapanese, replyReading)}</p><p class="rehearsal-reading">${escapeHtml(displayPronunciation(replyReading))}</p><button class="rehearsal-primary" data-action="start-rehearsal">다른 상황 연습하기</button>`;
+    $('#rehearsal-content').innerHTML = `<section class="rehearsal-card"><span class="rehearsal-category">${escapeHtml(phrase.cat)}</span>${content}</section>`;
+  }
+
+  function loadSharedTrip() {
+    const params = new URLSearchParams(window.location.search);
+    const city = params.get('tabi-city');
+    const interests = params.get('tabi-interests')?.split(',').filter(interest => tripCategoryMap[interest]);
+    if (!city || !interests?.length) return;
+    state.trip = { ready: true, city, date: params.get('tabi-date') || '', interests, shared: true };
+    saveState();
+    record('trip_pack_opened_from_link', { city });
   }
 
   function renderProfile() {
@@ -154,13 +583,23 @@
       : '';
     $('#history-description').textContent = state.views.length ? `${state.views.length}개 표현` : '아직 확인한 표현이 없어요';
     $('#profile-favorites-count').textContent = state.favorites.length ? `${state.favorites.length}개 표현` : '아직 북마크한 표현이 없어요';
+    const saved = state.favorites.map(findPhrase).filter(Boolean);
+    const counts = Object.keys(categoryMeta).map(category => [category, saved.filter(phrase => bookmarkCategory(phrase) === category).length]).filter(([, count]) => count);
+    $('#profile-bookmark-categories').innerHTML = counts.length
+      ? `<p>카테고리별 북마크</p><div>${counts.map(([category, count]) => `<button data-action="open-bookmark-category" data-category="${category}">${category}<span>${count}</span></button>`).join('')}</div>`
+      : '';
+    $$('.pronunciation-options button').forEach(button => {
+      const selected = button.dataset.style === state.pronunciationStyle;
+      button.classList.toggle('active', selected);
+      button.setAttribute('aria-checked', String(selected));
+    });
   }
 
   function openList(type) {
     state.previousScreen = $('.screen.active').id.replace('-screen', '');
     $('#list-screen [data-back]').hidden = false;
     const list = type === 'popular' ? phrases.slice(0, 12)
-      : type === 'favorites' ? phrases.filter(phrase => state.favorites.includes(phrase.id))
+      : type === 'favorites' ? phrases.filter(phrase => state.favorites.includes(phrase.id) && (state.bookmarkFilter === 'all' || bookmarkCategory(phrase) === state.bookmarkFilter))
       : type === 'history' ? state.views.map(findPhrase).filter(Boolean)
       : phrases.filter(phrase => phrase.cat === type);
     const labels = {
@@ -173,7 +612,7 @@
     $('#list-title').textContent = title;
     $('#list-description').textContent = list.length ? `${list.length}개의 표현을 준비했어요.` : type === 'history' ? '아직 확인한 표현이 없어요.' : '아직 북마크한 표현이 없어요.';
     const isCategory = !labels[type];
-    $('#quick-word-entry').innerHTML = quickWords[type] ? `
+    $('#quick-word-entry').innerHTML = type === 'favorites' ? `<div class="bookmark-filter">${['all', ...Object.keys(categoryMeta)].map(category => `<button class="${state.bookmarkFilter === category ? 'active' : ''}" data-action="set-bookmark-filter" data-category="${category}">${category === 'all' ? '전체' : category}</button>`).join('')}</div>` : isCategory ? quickWordPreview(type) : quickWords[type] ? `
       <button class="quick-word-entry" data-action="open-quick-words" data-category="${type}">
         <span>🔖</span><div><strong>바로 쓰는 필수 단어</strong><small>상황별 핵심 단어를 한눈에 확인해요</small></div><b>›</b>
       </button>` : '';
@@ -270,7 +709,7 @@
 
   function renderExpectedReplies(phrase) {
     const replies = phraseReplies(phrase);
-    $('#detail-expected-replies').innerHTML = `<p class="expected-note">이 표현 뒤에 자주 들을 수 있는 답변이에요.</p>${replies.map(([japanese, reading, korean]) => `<div class="expected-reply"><strong>${japanese}</strong><span class="expected-reply-reading">${reading}</span><span>${korean}</span><div class="expected-reply-actions"><button class="icon-action" data-action="speak-word" data-text="${japanese}" aria-label="${japanese} 듣기" title="일본어 듣기">${icons.listen}</button><button class="icon-action" data-action="copy-word" data-text="${japanese}" aria-label="${japanese} 복사하기" title="일본어 복사하기">${icons.copy}</button></div></div>`).join('')}`;
+    $('#detail-expected-replies').innerHTML = `<p class="expected-note">이 표현 뒤에 자주 들을 수 있는 답변이에요.</p>${replies.map(([japanese, reading, korean]) => `<div class="expected-reply"><strong>${japaneseWithYomi(japanese, reading)}</strong><span class="expected-reply-reading">${displayPronunciation(reading)}</span><span>${korean}</span><div class="expected-reply-actions"><button class="icon-action" data-action="speak-word" data-text="${japanese}" aria-label="${japanese} 듣기" title="일본어 듣기">${icons.listen}</button><button class="icon-action" data-action="copy-word" data-text="${japanese}" aria-label="${japanese} 복사하기" title="일본어 복사하기">${icons.copy}</button></div></div>`).join('')}`;
   }
 
   function openPhrase(id, previousScreen = null) {
@@ -283,15 +722,15 @@
     saveState();
 
     $('#detail-category').textContent = phrase.cat;
-    $('#detail-japanese').textContent = phrase.jp;
-    $('#detail-romaji').textContent = phrase.romaji;
+    $('#detail-japanese').innerHTML = japaneseWithYomi(phrase.jp, phrase.romaji);
+    $('#detail-romaji').textContent = displayPronunciation(phrase.romaji);
     $('#detail-korean').textContent = phrase.ko;
     $('#detail-note').textContent = phrase.note;
     const politeJapanese = phrase.jp.startsWith('すみません') ? phrase.jp : `すみません、${phrase.jp}`;
     const politeReading = phrase.jp.startsWith('すみません') ? phrase.romaji : `스미마센, ${phrase.romaji}`;
     const politeMeaning = phrase.jp.startsWith('すみません') ? phrase.ko : `실례합니다, ${phrase.ko}`;
-    $('#detail-polite').textContent = politeJapanese;
-    $('#detail-polite-reading').textContent = politeReading;
+    $('#detail-polite').innerHTML = japaneseWithYomi(politeJapanese, politeReading);
+    $('#detail-polite-reading').textContent = displayPronunciation(politeReading);
     $('#detail-polite-meaning').textContent = politeMeaning;
     $('#detail-favorite').classList.toggle('is-bookmarked', state.favorites.includes(id));
     renderExpectedReplies(phrase);
@@ -302,13 +741,18 @@
   function toggleFavorite() {
     const { id } = state.activePhrase || {};
     if (!id) return;
+    const isAdding = toggleFavoriteId(id);
+    $('#detail-favorite').classList.toggle('is-bookmarked', isAdding);
+  }
+
+  function toggleFavoriteId(id) {
     const index = state.favorites.indexOf(id);
     const isAdding = index === -1;
     if (isAdding) state.favorites.push(id);
     else state.favorites.splice(index, 1);
     saveState();
-    $('#detail-favorite').classList.toggle('is-bookmarked', isAdding);
     showToast(isAdding ? '북마크에 추가했어요.' : '북마크를 해제했어요.');
+    return isAdding;
   }
 
   function startReview() {
@@ -326,26 +770,145 @@
     if (!phrase) return navigate('home');
     $('#review-progress').textContent = `${state.reviewIndex + 1} / ${state.reviewItems.length} 표현`;
     $('#review-korean').textContent = phrase.ko;
-    $('#review-japanese').textContent = phrase.jp;
-    $('#review-romaji').textContent = phrase.romaji;
+    $('#review-japanese').innerHTML = japaneseWithYomi(phrase.jp, phrase.romaji);
+    $('#review-romaji').textContent = displayPronunciation(phrase.romaji);
     $('#review-answer').hidden = true;
     $('#review-listen').hidden = true;
     $('#review-reveal').hidden = false;
     $('#review-next').textContent = state.reviewIndex === state.reviewItems.length - 1 ? '복습 완료' : '다음 표현 ›';
   }
 
+  const offlineSpeakAdditions = [
+    { id: 'offline-full', cat: '식당', jp: '満席ですか？', romaji: '만세키 데스카?', ko: '만석인가요?', use: '식당에서 빈자리가 있는지 확인할 때 사용해요.', note: '입구나 직원에게 짧게 물어보세요.' },
+    { id: 'offline-wait', cat: '식당', jp: 'どのくらい待ちますか？', romaji: '도노쿠라이 마치마스카?', ko: '얼마나 기다리면 되나요?', use: '대기 시간을 물을 때 사용해요.', note: '대기 명단을 작성해야 할 수 있어요.' },
+    { id: 'offline-not-spicy', cat: '식당', jp: '辛くしないでください。', romaji: '카라쿠 시나이데 쿠다사이.', ko: '맵지 않게 해 주세요.', use: '음식의 매운 정도를 요청할 때 사용해요.', note: '메뉴를 가리키며 말하면 더 정확해요.' },
+    { id: 'offline-reservation', cat: '식당', jp: '予約できますか？', romaji: '요야쿠 데키마스카?', ko: '예약할 수 있나요?', use: '식당이나 체험 예약 가능 여부를 물을 때 사용해요.', note: '날짜와 인원을 이어서 알려 주세요.' }
+  ];
+  offlineSpeakAdditions.forEach(phrase => { if (!findPhrase(phrase.id)) phrases.push(phrase); });
+
+  const localSpeakGuide = [
+    { situations: ['식당'], patterns: [/만석|빈자리|자리있|웨이팅/], japanese: '満席ですか？' },
+    { situations: ['식당'], patterns: [/얼마나.*기다|대기.*시간/], japanese: 'どのくらい待ちますか？' },
+    { situations: ['식당'], patterns: [/맵지|안맵|매운.*않/], japanese: '辛くしないでください。' },
+    { situations: ['식당'], patterns: [/예약.*가능|예약.*할|예약해/], japanese: '予約できますか？' },
+    { situations: ['식당'], patterns: [/따로.*계산|나눠.*계산/], japanese: '別々に払えますか？' },
+    { situations: ['식당', '쇼핑', '카페'], patterns: [/현금.*(만|만돼|만되)|현금결제/], japanese: '現金だけですか？' },
+    { situations: ['식당', '쇼핑', '카페'], patterns: [/카드|신용카드/], japanese: 'カードは使えますか？' },
+    { situations: ['식당', '카페'], patterns: [/포장|테이크아웃/], japanese: '持ち帰りできますか？' },
+    { situations: ['식당', '카페'], patterns: [/메뉴|메뉴판/], japanese: 'メニューをください。' },
+    { situations: ['식당', '카페'], patterns: [/추천/], japanese: 'おすすめは何ですか？' },
+    { situations: ['식당'], patterns: [/알레르기|못.*먹|빼.*주세요/], japanese: 'アレルギーがあります。' },
+    { situations: ['교통', '길 묻기'], patterns: [/역까지|역.*가고|역.*갈/], japanese: '駅までお願いします。' },
+    { situations: ['교통'], patterns: [/몇.*번.*(선|승강장|플랫폼)|승강장|플랫폼/], japanese: '何番線ですか？' },
+    { situations: ['교통'], patterns: [/막차/], japanese: '終電は何時ですか？' },
+    { situations: ['교통'], patterns: [/환승/], japanese: '乗り継ぎがあります。' },
+    { situations: ['교통'], patterns: [/여기서.*내|내릴게/], japanese: 'ここで降ります。' },
+    { situations: ['교통'], patterns: [/지연|늦어/], japanese: '電車は遅れていますか？' },
+    { situations: ['숙소'], patterns: [/체크인/], japanese: 'チェックインをお願いします。' },
+    { situations: ['숙소'], patterns: [/체크아웃/], japanese: 'チェックアウトをお願いします。' },
+    { situations: ['숙소'], patterns: [/짐.*맡|짐보관/], japanese: '荷物を預けられますか？' },
+    { situations: ['숙소'], patterns: [/수건/], japanese: 'タオルをもう一枚ください。' },
+    { situations: ['숙소'], patterns: [/와이파이|비밀번호/], japanese: 'Wi-Fiのパスワードは何ですか？' },
+    { situations: ['숙소'], patterns: [/키.*안.*열|열쇠.*안.*열/], japanese: '部屋の鍵が開きません。' },
+    { situations: ['숙소'], patterns: [/조식|아침.*식사/], japanese: '朝食は何時からですか？' },
+    { situations: ['쇼핑'], patterns: [/얼마|가격/], japanese: 'これはいくらですか？' },
+    { situations: ['쇼핑'], patterns: [/입어|시착/], japanese: '試着してもいいですか？' },
+    { situations: ['쇼핑'], patterns: [/사이즈|큰.*사이즈|작은.*사이즈/], japanese: '大きいサイズはありますか？' },
+    { situations: ['쇼핑'], patterns: [/다른.*색|색상/], japanese: 'ほかの色はありますか？' },
+    { situations: ['쇼핑'], patterns: [/면세/], japanese: '免税できますか？' },
+    { situations: ['쇼핑'], patterns: [/영수증/], japanese: 'レシートをください。' },
+    { situations: ['전체'], patterns: [/천천히/], japanese: 'ゆっくり話してください。' },
+    { situations: ['전체'], patterns: [/다시.*말|한번.*더|한.*번.*더/], japanese: 'もう一度お願いします。' },
+    { situations: ['전체'], patterns: [/영어/], japanese: '英語を話せますか？' },
+    { situations: ['전체'], patterns: [/도와|도움/], japanese: '手伝っていただけますか？' }
+  ];
+
+  // 자주 쓰는 한국어 변형을 같은 여행 표현으로 연결한다. 별칭을 추가하면 AI 없이도 바로 확장된다.
+  const localSpeakAliases = [
+    { situations: ['식당', '카페'], aliases: ['물좀주세요', '물부탁', '물주세요'], japanese: 'お水をください。' },
+    { situations: ['식당'], aliases: ['이걸로주세요', '이것으로주세요', '주문할게'], japanese: 'これをお願いします。' },
+    { situations: ['식당'], aliases: ['고기들어', '고기있', '육류'], japanese: '肉は入っていますか？' },
+    { situations: ['식당'], aliases: ['계산해주세요', '계산부탁', '계산할게'], japanese: 'お会計をお願いします。' },
+    { situations: ['식당'], aliases: ['예약했어요', '예약되어', '예약자'], japanese: '予約しています。' },
+    { situations: ['교통'], aliases: ['표한장', '표주세요', '승차권'], japanese: '切符を一枚ください。' },
+    { situations: ['교통'], aliases: ['교통카드', 'ic카드', '스이카'], japanese: 'ICカードは使えますか？' },
+    { situations: ['교통'], aliases: ['택시승강장', '택시타는곳'], japanese: 'タクシー乗り場はどこですか？' },
+    { situations: ['교통'], aliases: ['택시불러', '택시불러주세요'], japanese: 'タクシーを呼んでください。' },
+    { situations: ['쇼핑'], aliases: ['현금만', '현금결제만'], japanese: '現金だけですか？' },
+    { situations: ['쇼핑'], aliases: ['봉투', '쇼핑백'], japanese: '袋をください。' },
+    { situations: ['쇼핑'], aliases: ['교환할수', '교환되', '바꿀수'], japanese: '交換できますか？' },
+    { situations: ['숙소'], aliases: ['예약했어요', '예약확인', '예약자이름'], japanese: '予約しています。' },
+    { situations: ['숙소'], aliases: ['체크인늦', '늦게체크인'], japanese: 'チェックインが遅くなります。' },
+    { situations: ['숙소'], aliases: ['택시불러', '택시호출'], japanese: 'タクシーを呼んでください。' },
+    { situations: ['길 묻기', '교통'], aliases: ['화장실어디', '화장실위치'], japanese: 'トイレはどこですか？' },
+    { situations: ['길 묻기'], aliases: ['가까워', '근처야', '근처에'], japanese: 'ここから近いですか？' },
+    { situations: ['길 묻기'], aliases: ['지도보여', '지도에서'], japanese: '地図で見せてください。' },
+    { situations: ['길 묻기'], aliases: ['사진찍어', '사진부탁'], japanese: '写真を撮ってください。' },
+    { situations: ['길 묻기'], aliases: ['입구어디', '들어가는곳'], japanese: '入口はどこですか？' },
+    { situations: ['길 묻기'], aliases: ['버스정류장', '버스타는곳'], japanese: 'バス停はどこですか？' },
+    { situations: ['길 묻기'], aliases: ['길잃', '길을잃'], japanese: '道に迷いました。' },
+    { situations: ['긴급 상황'], aliases: ['도와주세요', '도움필요'], japanese: '助けてください。' },
+    { situations: ['긴급 상황'], aliases: ['경찰불러', '경찰호출'], japanese: '警察を呼んでください。' },
+    { situations: ['긴급 상황', '병원·약국'], aliases: ['구급차불러', '응급차불러'], japanese: '救急車を呼んでください。' },
+    { situations: ['긴급 상황'], aliases: ['지갑잃', '지갑분실'], japanese: '財布をなくしました。' },
+    { situations: ['긴급 상황'], aliases: ['여권잃', '여권분실'], japanese: 'パスポートをなくしました。' },
+    { situations: ['공항'], aliases: ['체크인카운터', '항공사카운터'], japanese: 'チェックインはどこですか？' },
+    { situations: ['공항'], aliases: ['탑승구', '게이트어디'], japanese: '搭乗口はどこですか？' },
+    { situations: ['공항'], aliases: ['짐부치', '수하물맡'], japanese: '荷物を預けたいです。' },
+    { situations: ['공항'], aliases: ['보안검색', '보안검사'], japanese: '荷物検査はどこですか？' },
+    { situations: ['공항'], aliases: ['환전소', '환전어디'], japanese: '両替はどこですか？' },
+    { situations: ['관광지'], aliases: ['티켓주세요', '표주세요', '입장권'], japanese: '入場券をください。' },
+    { situations: ['관광지'], aliases: ['사진찍어도', '촬영해도'], japanese: '写真を撮ってもいいですか？' },
+    { situations: ['관광지'], aliases: ['몇시까지', '마감시간'], japanese: 'ここは何時まで開いていますか？' },
+    { situations: ['카페'], aliases: ['커피한잔', '커피주세요'], japanese: 'コーヒーを一つください。' },
+    { situations: ['카페'], aliases: ['매장에서', '여기서마실'], japanese: '店内で飲みます。' },
+    { situations: ['카페'], aliases: ['테이크아웃', '포장으로'], japanese: '持ち帰りにします。' },
+    { situations: ['카페'], aliases: ['얼음없이', '아이스빼'], japanese: '氷なしでお願いします。' },
+    { situations: ['병원·약국'], aliases: ['머리아파', '두통'], japanese: '頭が痛いです。' },
+    { situations: ['병원·약국'], aliases: ['배아파', '복통'], japanese: 'お腹が痛いです。' },
+    { situations: ['병원·약국'], aliases: ['열나요', '열있'], japanese: '熱があります。' },
+    { situations: ['병원·약국'], aliases: ['약주세요', '약필요'], japanese: '薬をください。' },
+    { situations: ['병원·약국'], aliases: ['보험돼', '보험사용'], japanese: '保険は使えますか？' },
+    { situations: ['전체'], aliases: ['감사합니다', '고마워요'], japanese: 'ありがとうございます。' },
+    { situations: ['전체'], aliases: ['괜찮아요', '괜찮습니다'], japanese: '大丈夫です。' },
+    { situations: ['전체'], aliases: ['알겠어요', '알겠습니다'], japanese: '分かりました。' }
+  ];
+
+  const normalizeSpeakInput = value => String(value || '').replace(/\s+/g, '').replace(/[?!？！.,]/g, '');
+
+  function isInConversationSituation(phrase, situation) {
+    return situation === '전체' || phrase.cat === situation;
+  }
+
   function localRecommendation(question) {
+    const normalized = normalizeSpeakInput(question);
+    const situation = state.conversationSituation;
+    const exactPhrase = phrases.find(phrase => isInConversationSituation(phrase, situation) && normalizeSpeakInput(phrase.ko) === normalized);
+    if (exactPhrase) return exactPhrase;
+    const alias = localSpeakAliases.find(entry =>
+      (entry.situations.includes('전체') || situation === '전체' || entry.situations.includes(situation))
+      && entry.aliases.some(value => normalized.includes(value))
+    );
+    const aliasPhrase = alias && phrases.find(phrase => phrase.jp === alias.japanese);
+    if (aliasPhrase) return aliasPhrase;
+    const match = localSpeakGuide.find(entry =>
+      (entry.situations.includes('전체') || situation === '전체' || entry.situations.includes(situation))
+      && entry.patterns.some(pattern => pattern.test(normalized))
+    );
+    const selected = match && phrases.find(phrase => phrase.jp === match.japanese);
+    if (selected) return selected;
     const intents = { 포장: '식당-6', 계산: '식당-7', 메뉴: '식당-1', 추천: '식당-2', 역: '교통-0', 택시: '교통-0', 막차: '교통-5', 가격: '쇼핑-0', 얼마: '쇼핑-0', 카드: '쇼핑-1', 면세: '쇼핑-4', 체크인: '숙소-0', 체크아웃: '숙소-2', 호텔: '숙소-0', 와이파이: '숙소-5', 화장실: '길 묻기-1', 길: '길 묻기-0', 사진: '길 묻기-4', 여권: '긴급 상황-7', 경찰: '긴급 상황-1', 병원: '병원·약국-0', 약국: '병원·약국-8', 약: '병원·약국-4', 공항: '공항-0', 탑승: '공항-1', 비행기: '공항-2', 환승: '공항-5', 관광: '관광지-0', 입장권: '관광지-0', 카페: '카페-0', 커피: '카페-0', 구급차: '긴급 상황-2' };
-    const matchingId = Object.entries(intents).find(([keyword]) => question.includes(keyword))?.[1]
-      || (/(^|\s)물(?:을|은|도)?(?:\s|$)/.test(question) ? '식당-0' : undefined);
+    const matchingId = Object.entries(intents).find(([keyword]) => normalized.includes(keyword))?.[1]
+      || (/물/.test(normalized) ? '식당-0' : undefined);
     return findPhrase(matchingId) || phrases[0];
   }
 
   function renderLocalAnswer(question) {
     const phrase = localRecommendation(question);
     const polite = /정중|공손/.test(question) ? `<br>더 정중하게: すみません、${phrase.jp}` : '';
+    hideSearchSuggestions();
     $('#ask-answer').innerHTML = `<article class="ai-card"><p class="eyebrow">TABi'S RECOMMENDATION</p>
-      <h3>${phrase.jp}</h3><p class="answer-ko">${phrase.romaji}<br>${phrase.ko}</p>
+      <h3>${japaneseWithYomi(phrase.jp, phrase.romaji)}</h3><p class="answer-ko">${displayPronunciation(phrase.romaji)}<br>${phrase.ko}</p>
       <small>${phrase.use}<br>${phrase.note}${polite}</small><br>
       <button class="icon-action" data-action="speak" data-id="${phrase.id}" aria-label="일본어 듣기" title="일본어 듣기">${icons.listen}</button>
       <button class="icon-action" data-action="copy-phrase" data-id="${phrase.id}" aria-label="일본어 복사하기" title="일본어 복사하기">${icons.copy}</button>
@@ -366,11 +929,12 @@
       const answer = await response.json();
       if (!response.ok || answer.error) throw new Error(answer.error || 'AI request failed');
       if ($('#global-search').value.trim() !== question) return;
+      hideSearchSuggestions();
       $('#ask-answer').innerHTML = `<article class="ai-card"><p class="eyebrow">AI RECOMMENDATION</p>
         <h3></h3><p class="answer-ko"></p><small></small><br><button class="icon-action" data-action="speak-ai" aria-label="일본어 듣기" title="일본어 듣기">${icons.listen}</button><button class="icon-action" data-action="copy-ai" aria-label="일본어 복사하기" title="일본어 복사하기">${icons.copy}</button></article>`;
       const card = $('.ai-card');
-      card.querySelector('h3').textContent = answer.japanese || '';
-      card.querySelector('.answer-ko').textContent = `${answer.pronunciation || ''}\n${answer.meaning || ''}`;
+      card.querySelector('h3').innerHTML = japaneseWithYomi(answer.japanese || '', answer.pronunciation || '');
+      card.querySelector('.answer-ko').textContent = `${displayPronunciation(answer.pronunciation || '')}\n${answer.meaning || ''}`;
       card.querySelector('small').textContent = `${answer.usage || ''}\n${answer.caution || ''}`;
       card.querySelector('[data-action="speak-ai"]').dataset.text = answer.japanese || '';
       card.querySelector('[data-action="copy-ai"]').dataset.text = answer.japanese || '';
@@ -383,64 +947,111 @@
 
   const escapeHtml = value => String(value || '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character]));
 
+  const conversationQuickPhrases = {
+    'どのくらい待ちますか？': { jp: 'どのくらい待ちますか？', romaji: '도노쿠라이 마치마스카?', ko: '얼마나 기다리면 되나요?' },
+    '予約できますか？': { jp: '予約できますか？', romaji: '요야쿠 데키마스카?', ko: '예약할 수 있나요?' },
+    'ATMはどこですか？': { jp: 'ATMはどこですか？', romaji: '에이티에무와 도코데스카?', ko: 'ATM은 어디인가요?' },
+    '別のサイズはありますか？': { jp: '別のサイズはありますか？', romaji: '베츠노 사이즈와 아리마스카?', ko: '다른 사이즈가 있나요?' },
+    'パスポートを見せます。': { jp: 'パスポートを見せます。', romaji: '파스포오토오 미세마스.', ko: '여권을 보여드릴게요.' }
+  };
+
+  function findConversationPhrase(japanese) {
+    return phrases.find(phrase => phrase.jp === japanese) || conversationQuickPhrases[japanese] || { japanese, jp: japanese, romaji: '', ko: '이 문장을 말해 보세요.' };
+  }
+
+  function conversationSuggestions(situation = state.conversationSituation, next = []) {
+    const requested = next.map(findConversationPhrase);
+    if (requested.length) return requested;
+    const category = situation === '전체' ? '식당' : situation;
+    return phrases.filter(phrase => phrase.cat === category).slice(0, 3);
+  }
+
+  function matchingConversationReply(japanese) {
+    const normalized = conversationKey(japanese);
+    const situation = state.conversationSituation;
+    return conversationReplyGuide.find(reply =>
+      (reply.situations.includes('전체') || situation === '전체' || reply.situations.includes(situation))
+      && reply.patterns.some(pattern => pattern.test(normalized))
+    );
+  }
+
   function localConversationAnswer(japanese) {
-    // 음성 인식 결과는 마침표·공백·가나 표기가 조금씩 달라질 수 있으므로,
-    // 비교할 때는 문장부호를 제외한 형태로 통일한다.
-    const normalized = japanese.normalize('NFKC').replace(/[\s、。！？!?,.]/g, '');
-    const commonReplies = [
-      {
-        patterns: [/^(かしこまりました|畏まりました)$/],
-        korean: '알겠습니다. 요청하신 내용을 정중하게 받아들였다는 뜻이에요.',
-        pronunciation: '카시코마리마시타',
-        keywords: ['매우 정중한 “알겠습니다”', '직원·서비스 상황에서 자주 사용']
-      },
-      {
-        patterns: [/^(わかりました|分かりました|分りました)$/],
-        korean: '알겠습니다. 내용을 이해했거나 요청을 받아들였다는 뜻이에요.',
-        pronunciation: '와카리마시타',
-        keywords: ['일반적인 “알겠습니다”', '일상 대화에서 사용']
-      },
-      {
-        patterns: [/^(しょうちしました|承知しました)$/],
-        korean: '알겠습니다. 상대방의 요청이나 안내를 정중하게 받아들였다는 뜻이에요.',
-        pronunciation: '쇼오치시마시타',
-        keywords: ['정중한 “알겠습니다”', '업무·서비스 상황에서 사용']
-      },
-      {
-        patterns: [/^(はい|ええ)$/],
-        korean: '네. 긍정하거나 동의한다는 뜻이에요.',
-        pronunciation: '하이 / 에에',
-        keywords: ['긍정', '동의']
-      }
-    ];
-    const commonReply = commonReplies.find(({ patterns }) => patterns.some(pattern => pattern.test(normalized)));
-    if (commonReply) {
+    const reply = matchingConversationReply(japanese);
+    if (reply) {
       return {
         japanese,
-        korean: commonReply.korean,
-        pronunciation: commonReply.pronunciation,
-        keywords: commonReply.keywords,
-        suggestions: conversationSuggestions()
+        korean: reply.korean,
+        pronunciation: reply.pronunciation,
+        keywords: reply.keywords,
+        suggestions: conversationSuggestions(state.conversationSituation, reply.next),
+        expected: situationReplyPreview[state.conversationSituation] || situationReplyPreview['전체'],
+        status: '표현을 찾았어요'
       };
     }
     const matches = [
-      [/はい|ええ/, '네, 또는 괜찮다는 뜻이에요.'], [/いいえ|だめ|できません/, '아니요, 또는 어렵다는 뜻이에요.'],
-      [/カード/, '카드와 관련된 답변이에요.'], [/現金/, '현금과 관련된 답변이에요.'],
-      [/水|お水/, '물과 관련된 답변이에요.'], [/満席/, '자리가 없거나 만석이라는 뜻이에요.'],
-      [/分|時間/, '시간이나 대기 시간과 관련된 답변이에요.'], [/駅|電車/, '역 또는 전철과 관련된 답변이에요.']
+      [/はい|ええ/, '네, 또는 괜찮다는 뜻이에요.'], [/いいえ|だめ|できません/, '어렵거나 불가능하다는 뜻이에요.'],
+      [/カード/, '카드 결제와 관련된 답변이에요.'], [/現金/, '현금 결제와 관련된 답변이에요.'],
+      [/水|お水/, '물과 관련된 답변이에요.'], [/分|時間/, '시간이나 대기 시간과 관련된 답변이에요.'],
+      [/駅|電車/, '역 또는 전철과 관련된 답변이에요.']
     ];
-    const korean = matches.find(([pattern]) => pattern.test(japanese))?.[1] || '상대방의 답변이에요. 인터넷 연결 시 더 자연스러운 번역을 제공해요.';
-    const suggestions = conversationSuggestions();
-    return { japanese, korean, pronunciation: '', keywords: [], suggestions };
+    const korean = matches.find(([pattern]) => pattern.test(japanese))?.[1] || '이 표현은 아직 내장 회화 사전에 없어요. 아래 문장으로 천천히 또는 다시 말해 달라고 요청해 보세요.';
+    return {
+      japanese,
+      korean,
+      pronunciation: '',
+      keywords: ['인식 결과를 직접 확인해 보세요'],
+      suggestions: conversationSuggestions(state.conversationSituation, ['ゆっくり話してください。', 'もう一度お願いします。']),
+      expected: situationReplyPreview[state.conversationSituation] || situationReplyPreview['전체'],
+      status: '가까운 상황 표현을 안내해요'
+    };
   }
 
-  function conversationSuggestions() {
-    return phrases.filter(phrase => ['식당-0', '교통-0', '숙소-0'].includes(phrase.id));
+  function renderConversationPicker() {
+    const picker = $('#conversation-phrase-picker');
+    if (!picker) return;
+    picker.hidden = !state.conversationPickerOpen;
+    if (!state.conversationPickerOpen) return;
+    const search = $('#conversation-phrase-search');
+    const results = $('#conversation-phrase-results');
+    const query = state.conversationPhraseQuery.trim().toLowerCase();
+    const situation = state.conversationSituation;
+    const candidates = phrases.filter(phrase => {
+      const inSituation = situation === '전체' || phrase.cat === situation;
+      const searchable = `${phrase.jp} ${phrase.romaji} ${phrase.ko}`.toLowerCase();
+      return inSituation && (!query || searchable.includes(query));
+    }).slice(0, 8);
+    search.value = state.conversationPhraseQuery;
+    search.placeholder = situation === '전체' ? '예: 만석, 카드, 체크인' : `${situation} 표현 검색`;
+    results.innerHTML = candidates.length
+      ? `<p>${query ? '검색 결과' : `${situation === '전체' ? '추천' : situation} 표현`} · ${candidates.length}개</p>${candidates.map(phrase => `<button data-action="choose-conversation-phrase" data-id="${phrase.id}"><strong>${japaneseWithYomi(phrase.jp, phrase.romaji)}</strong><span>${escapeHtml(phrase.ko)}</span><b>›</b></button>`).join('')}`
+      : '<p class="conversation-picker-empty">찾는 표현이 없어요. 다른 단어로 검색해 보세요.</p>';
+  }
+
+  function showConversationPhrase(phrase) {
+    if (!phrase) return;
+    const isSpeak = state.conversationMode === 'speak';
+    const answer = {
+      japanese: phrase.jp,
+      korean: phrase.ko,
+      pronunciation: phrase.romaji,
+      keywords: [isSpeak ? '표현 목록에서 선택' : `${phrase.cat}에서 자주 쓰는 표현`],
+      suggestions: [],
+      mode: isSpeak ? 'speak' : undefined
+    };
+    $('#conversation-input').value = isSpeak ? phrase.ko : phrase.jp;
+    state.conversationPickerOpen = false;
+    renderConversationPicker();
+    const entry = { id: `${Date.now()}`, japanese: answer.japanese, korean: answer.korean, at: new Date().toISOString(), answer };
+    state.conversationHistory = deduplicateConversationHistory([entry, ...state.conversationHistory]).slice(0, 20);
+    saveState();
+    renderConversationResult(answer);
+    renderConversationLog();
+    record('conversation_phrase_selected', { id: phrase.id, situation: state.conversationSituation });
   }
 
   function renderConversationLog() {
     const log = $('#conversation-log');
-    const recent = state.conversationHistory.slice(0, 3);
+    const recent = state.conversationHistory.slice(0, 2);
     log.innerHTML = recent.length ? `<p>최근 대화</p>${recent.map(item => `<button data-action="show-conversation" data-conversation-id="${item.id}"><strong>${escapeHtml(item.japanese)}</strong><span>${escapeHtml(item.korean)}</span></button>`).join('')}` : '';
   }
 
@@ -448,72 +1059,110 @@
     const result = $('#conversation-result');
     const suggestions = (answer.suggestions || []).slice(0, 3);
     result.hidden = false;
-    result.innerHTML = `<p class="eyebrow">KOREAN MEANING</p><h3>${escapeHtml(answer.japanese)}</h3>${answer.pronunciation ? `<p class="conversation-reading">${escapeHtml(answer.pronunciation)}</p>` : ''}<p class="conversation-meaning">${escapeHtml(answer.korean)}</p>${answer.keywords?.length ? `<p class="conversation-keywords">핵심 단어 · ${answer.keywords.map(escapeHtml).join(' · ')}</p>` : ''}<div class="conversation-next"><p>이어서 말하기</p>${suggestions.map(phrase => `<button data-action="speak" data-id="${phrase.id}"><strong>${escapeHtml(phrase.jp)}</strong><span>${escapeHtml(phrase.ko)}</span><b>▶</b></button>`).join('')}</div>`;
+    const isSpeak = answer.mode === 'speak';
+    result.innerHTML = `<p class="eyebrow">${isSpeak ? 'READY TO SAY' : '뜻'}</p><h3>${answer.pronunciation ? japaneseWithYomi(answer.japanese, answer.pronunciation) : escapeHtml(answer.japanese)}</h3>${answer.pronunciation ? `<p class="conversation-reading">${escapeHtml(displayPronunciation(answer.pronunciation))}</p>` : ''}<p class="conversation-meaning">${escapeHtml(answer.korean)}</p>${answer.keywords?.length ? `<p class="conversation-keywords">${answer.keywords.map(escapeHtml).join(' · ')}</p>` : ''}${isSpeak ? `<div class="conversation-result-actions"><button class="icon-action" data-action="speak-word" data-text="${escapeHtml(answer.japanese)}" aria-label="일본어 듣기" title="일본어 듣기">${icons.listen}</button><button class="icon-action" data-action="copy-word" data-text="${escapeHtml(answer.japanese)}" aria-label="일본어 복사하기" title="일본어 복사하기">${icons.copy}</button></div>` : ''}${suggestions.length ? `<div class="conversation-next"><p>다음에 이렇게 말해 보세요</p>${suggestions.map(phrase => `<button data-action="speak-word" data-text="${escapeHtml(phrase.jp || phrase.japanese)}"><span><strong>${japaneseWithYomi(phrase.jp || phrase.japanese, phrase.romaji || '')}</strong><small>${escapeHtml(phrase.ko || '')}</small></span><b aria-hidden="true">${icons.listen}</b></button>`).join('')}</div>` : ''}`;
   }
 
   async function analyzeConversation() {
     const input = $('#conversation-input');
-    const japanese = input.value.trim();
-    if (!japanese) return showToast('상대방의 일본어 답변을 입력하거나 녹음해 주세요.');
+    const text = input.value.trim();
+    const isSpeak = state.conversationMode === 'speak';
+    if (!text) return showToast(isSpeak ? '말하고 싶은 한국어를 입력하거나 녹음해 주세요.' : '상대방의 일본어 답변을 입력하거나 녹음해 주세요.');
     $('#conversation-result').hidden = false;
-    $('#conversation-result').innerHTML = '<p class="eyebrow">UNDERSTANDING</p><p class="conversation-meaning">답변을 이해하고 있어요.</p>';
+    $('#conversation-result').innerHTML = `<p class="eyebrow">${isSpeak ? 'PREPARING JAPANESE' : 'UNDERSTANDING'}</p><p class="conversation-meaning">${isSpeak ? '바로 말할 일본어를 준비하고 있어요.' : '답변을 이해하고 있어요.'}</p>`;
     let answer;
     try {
       if (!window.TABI_AI_ENDPOINT) throw new Error('local mode');
       const headers = { 'Content-Type': 'application/json' };
       if (window.TABI_SUPABASE_ANON_KEY) { headers.apikey = window.TABI_SUPABASE_ANON_KEY; headers.Authorization = `Bearer ${window.TABI_SUPABASE_ANON_KEY}`; }
-      const response = await fetch(window.TABI_AI_ENDPOINT, { method: 'POST', headers, body: JSON.stringify({ mode: 'conversation', japanese }) });
+      const response = await fetch(window.TABI_AI_ENDPOINT, { method: 'POST', headers, body: JSON.stringify(isSpeak ? { mode: 'speak', korean: text } : { mode: 'conversation', japanese: text }) });
       const data = await response.json();
       if (!response.ok || data.error) throw new Error(data.error || 'conversation request failed');
-      answer = { japanese, korean: data.korean, pronunciation: data.pronunciation, keywords: data.keywords || [], suggestions: conversationSuggestions() };
+      answer = isSpeak
+        ? { japanese: data.japanese, korean: data.meaning || text, pronunciation: data.pronunciation, keywords: [], suggestions: [], mode: 'speak' }
+        : { japanese: text, korean: data.korean, pronunciation: data.pronunciation, keywords: data.keywords || [], suggestions: conversationSuggestions(state.conversationSituation), expected: situationReplyPreview[state.conversationSituation] || situationReplyPreview['전체'], status: 'AI가 표현을 분석했어요' };
     } catch {
-      answer = localConversationAnswer(japanese);
+      if (isSpeak) {
+        const phrase = localRecommendation(text);
+        answer = { japanese: phrase.jp, korean: phrase.ko, pronunciation: phrase.romaji, keywords: ['여행에서 바로 쓰는 기본 표현'], suggestions: [], mode: 'speak' };
+      } else {
+        answer = localConversationAnswer(text);
+      }
     }
-    const entry = { id: `${Date.now()}`, japanese, korean: answer.korean, at: new Date().toISOString(), answer };
+    const entry = { id: `${Date.now()}`, japanese: answer.japanese, korean: answer.korean, at: new Date().toISOString(), answer };
     state.conversationHistory = deduplicateConversationHistory([entry, ...state.conversationHistory]).slice(0, 20);
     saveState();
     renderConversationResult(answer);
     renderConversationLog();
-    record('conversation_understood');
+    record(isSpeak ? 'conversation_spoken' : 'conversation_understood');
   }
 
   function startJapaneseRecognition() {
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Recognition) return showToast('이 브라우저에서는 음성 인식을 지원하지 않아요. 일본어를 직접 입력해 주세요.');
     const recognition = new Recognition();
-    recognition.lang = 'ja-JP';
+    const isSpeak = state.conversationMode === 'speak';
+    recognition.lang = isSpeak ? 'ko-KR' : 'ja-JP';
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
     const button = $('#conversation-record');
     button.classList.add('is-recording');
-    $('#conversation-note').textContent = '듣고 있어요. 상대방의 답변이 끝나면 자동으로 입력돼요.';
+    $('#conversation-note').textContent = isSpeak ? '듣고 있어요. 말이 끝나면 일본어를 준비해요.' : '듣고 있어요. 상대방의 답변이 끝나면 자동으로 입력돼요.';
     recognition.onresult = event => {
       $('#conversation-input').value = event.results[0][0].transcript;
-      $('#conversation-note').textContent = '일본어 답변을 받아왔어요. 바로 해석하고 있어요.';
+      $('#conversation-note').textContent = isSpeak ? '한국어를 받아왔어요. 바로 일본어로 만들고 있어요.' : '일본어 답변을 받아왔어요. 바로 해석하고 있어요.';
       analyzeConversation();
     };
-    recognition.onerror = () => { $('#conversation-note').textContent = '음성을 인식하지 못했어요. 일본어를 직접 입력해 주세요.'; };
+    recognition.onerror = () => { $('#conversation-note').textContent = isSpeak ? '음성을 인식하지 못했어요. 한국어를 직접 입력해 주세요.' : '음성을 인식하지 못했어요. 일본어를 직접 입력해 주세요.'; };
     recognition.onend = () => button.classList.remove('is-recording');
     recognition.start();
   }
 
+  function normalizeSearchText(value) {
+    return String(value || '').normalize('NFKC').toLowerCase().replace(/[\s\p{P}\p{S}]/gu, '');
+  }
+
+  function scorePhraseForSearch(phrase, query) {
+    const normalized = normalizeSearchText(query);
+    const tokens = query.toLowerCase().split(/\s+/).map(normalizeSearchText).filter(Boolean);
+    const fields = [phrase.jp, phrase.romaji, phrase.ko].map(normalizeSearchText);
+    const keywords = [...(searchAliases[phrase.cat] || '').split(' '), ...(phraseSearchKeywords[phrase.id] || [])].map(normalizeSearchText);
+    const category = normalizeSearchText(phrase.cat);
+    const terms = [...fields, category, ...keywords];
+    const fullMatch = terms.some(term => term.includes(normalized));
+    const tokenMatches = tokens.filter(token => terms.some(term => term.includes(token))).length;
+    if (!fullMatch && (!tokens.length || tokenMatches !== tokens.length)) return null;
+
+    let score = tokenMatches * 60;
+    let reason = '관련 키워드';
+    if (fields[2] === normalized) { score += 1000; reason = '뜻이 정확히 일치'; }
+    else if (fields[0] === normalized || fields[1] === normalized) { score += 950; reason = '표현이 정확히 일치'; }
+    else if (keywords.includes(normalized)) { score += 850; reason = '검색 키워드 일치'; }
+    else if (category === normalized) { score += 700; reason = `${phrase.cat} 상황`; }
+    else if (fields.some(field => field.includes(normalized))) { score += 500; reason = '표현 내용 일치'; }
+    else if (keywords.some(keyword => keyword.includes(normalized))) { score += 400; reason = '관련 키워드'; }
+    return { phrase, score, reason };
+  }
+
   function renderSearch(query) {
-    const normalized = query.trim().toLowerCase();
-    const results = normalized ? phrases
-      .filter(phrase => `${phrase.jp}${phrase.romaji}${phrase.ko}${phrase.cat}${searchAliases[phrase.cat]}`.toLowerCase().includes(normalized))
-      .filter((phrase, index, matches) => matches.findIndex(match => match.jp === phrase.jp && match.ko === phrase.ko) === index)
+    const normalized = normalizeSearchText(query);
+    const results = normalized ? phrases.map(phrase => scorePhraseForSearch(phrase, query)).filter(Boolean)
+      .sort((left, right) => right.score - left.score)
+      .filter((item, index, matches) => matches.findIndex(match => match.phrase.jp === item.phrase.jp && match.phrase.ko === item.phrase.ko) === index)
       .slice(0, 6) : [];
-    $('#search-results').innerHTML = results.map(phraseCard).join('');
-    clearTimeout(renderSearch.aiTimeout);
-    if (!normalized || results.length) {
-      $('#ask-answer').innerHTML = '';
-    } else {
-      const question = query.trim();
-      renderSearch.aiTimeout = setTimeout(() => {
-        if ($('#global-search').value.trim() === question) askAi(question);
-      }, 350);
-    }
-    renderSearchSuggestions(normalized);
+    state.searchHasResults = results.length > 0;
+    $('#search-results').innerHTML = results.length
+      ? results.map(({ phrase, reason }) => phraseCard(phrase, reason)).join('')
+      : normalized ? `<div class="search-empty"><p>찾는 표현이 없어요.</p><button data-action="search-with-ai" data-query="${escapeHtml(query.trim())}">AI에게 표현 만들기</button></div>` : '';
+    $('#ask-answer').innerHTML = '';
+    if (results.length) hideSearchSuggestions();
+    else renderSearchSuggestions(normalized);
+  }
+
+  function hideSearchSuggestions() {
+    const panel = $('#search-suggestions');
+    panel.hidden = true;
+    panel.innerHTML = '';
   }
 
   function saveSearch(query) {
@@ -533,13 +1182,22 @@
       panel.hidden = true;
       return;
     }
+    // 검색 결과가 있으면 입력창에 다시 포커스해도 연관 검색어를 표시하지 않는다.
+    if (query && state.searchHasResults) {
+      hideSearchSuggestions();
+      return;
+    }
     const terms = query ? getRelatedSearches(query) : state.recentSearches;
     const title = query ? '연관 검색어' : '최근 검색어';
-    const empty = query ? '연관된 검색어가 없어요.' : '최근 검색어가 없어요.';
+    if (!terms.length) {
+      panel.hidden = true;
+      panel.innerHTML = '';
+      return;
+    }
     panel.hidden = false;
     panel.innerHTML = `<div class="search-panel-heading"><p>${title}</p>${!query && terms.length ? '<button data-action="clear-recent-searches">전체 삭제</button>' : ''}</div>${terms.length
       ? `<div class="search-term-list">${terms.map(term => `<button data-action="search-term" data-term="${term}"><span>${query ? '⌕' : '◷'}</span>${term}<b>↗</b></button>`).join('')}</div>`
-      : `<small>${empty}</small>`}`;
+      : ''}`;
 
     const clearButton = panel.querySelector('[data-action="clear-recent-searches"]');
     if (clearButton) {
@@ -613,6 +1271,18 @@
     const target = event.target.closest('[data-action]');
     if (!target) return;
     const { action, id, category } = target.dataset;
+    if (action === 'start-trip' || action === 'edit-trip') openTripSetup();
+    if (action === 'share-trip') shareTrip();
+    if (action === 'start-rehearsal') openRehearsal(target.dataset.scenario || '');
+    if (action === 'choose-rehearsal') chooseRehearsal(category);
+    if (action === 'rehearsal-reveal') { state.rehearsalStage = 1; renderRehearsal(); record('rehearsal_phrase_revealed'); }
+    if (action === 'rehearsal-record') startRehearsalRecognition();
+    if (action === 'rehearsal-next') { state.rehearsalStage = 2; renderRehearsal(); record('rehearsal_reply_opened'); }
+    if (action === 'rehearsal-finish') { state.rehearsalStage = 3; renderRehearsal(); record('rehearsal_completed'); }
+    if (action === 'delete-trip') deleteTrip();
+    if (action === 'open-trip-pack') { state.previousScreen = $('.screen.active').id.replace('-screen', ''); navigate('trip-pack', ''); }
+    if (action === 'open-travel-mode') { state.previousScreen = 'trip-pack'; navigate('travel-mode', ''); }
+    if (action === 'open-conversation') { state.previousScreen = 'travel-mode'; navigate('conversation'); }
     if (action === 'open-category') openList(category);
     if (action === 'open-profile-list') openList(target.dataset.list);
     if (action === 'open-quick-words') openQuickWords(category);
@@ -620,10 +1290,40 @@
     if (action === 'speak') { event.stopPropagation(); const phrase = findPhrase(id); if (phrase) { flashIcon(target); speak(phrase.jp); } }
     if (action === 'speak-word') { event.stopPropagation(); flashIcon(target); speak(target.dataset.text); }
     if (action === 'copy-phrase') { event.stopPropagation(); const phrase = findPhrase(id); if (phrase) copyText(phrase.jp, { id: phrase.id }, target); }
+    if (action === 'toggle-favorite') { event.stopPropagation(); const isAdding = toggleFavoriteId(id); target.classList.toggle('is-active', isAdding); target.setAttribute('aria-label', `${findPhrase(id)?.jp || '표현'} ${isAdding ? '북마크 해제' : '북마크'}`); }
     if (action === 'copy-word') { event.stopPropagation(); copyText(target.dataset.text, {}, target); }
     if (action === 'clear-recent-searches') clearRecentSearches();
     if (action === 'speak-ai') { flashIcon(target); speak(target.dataset.text); }
     if (action === 'copy-ai') copyText(target.dataset.text, {}, target);
+    if (action === 'set-conversation-mode') setConversationMode(target.dataset.mode);
+    if (action === 'set-conversation-situation') setConversationSituation(target.dataset.situation);
+    if (action === 'toggle-conversation-picker') {
+      state.conversationPickerOpen = !state.conversationPickerOpen;
+      state.conversationPhraseQuery = '';
+      renderConversationPicker();
+      if (state.conversationPickerOpen) $('#conversation-phrase-search').focus();
+    }
+    if (action === 'choose-conversation-phrase') showConversationPhrase(findPhrase(id));
+    if (action === 'set-pronunciation-style') {
+      state.pronunciationStyle = target.dataset.style === 'roman' ? 'roman' : 'hangul';
+      localStorage.setItem(storageKey('pronunciation-style'), state.pronunciationStyle);
+      renderProfile();
+      showToast(`${state.pronunciationStyle === 'roman' ? '로마자형' : '한글형'} 발음 표기로 바꿨어요.`);
+    }
+    if (action === 'open-bookmark-category') {
+      state.bookmarkFilter = category;
+      openList('favorites');
+    }
+    if (action === 'set-bookmark-filter') {
+      state.bookmarkFilter = category || 'all';
+      const previousScreen = state.previousScreen;
+      openList('favorites');
+      state.previousScreen = previousScreen;
+    }
+    if (action === 'search-with-ai') {
+      const question = target.dataset.query || $('#global-search').value.trim();
+      if (question) { saveSearch(question.toLowerCase()); askAi(question); }
+    }
     if (action === 'show-conversation') { const entry = state.conversationHistory.find(item => item.id === target.dataset.conversationId); if (entry) renderConversationResult(entry.answer); }
     if (action === 'search-term') { $('#global-search').value = target.dataset.term; state.searchActive = true; saveSearch(target.dataset.term); renderSearch(target.dataset.term); $('#global-search').focus(); }
     if (action === 'speak-kana') speak(target.dataset.character);
@@ -649,7 +1349,14 @@
     $('#detail-favorite').addEventListener('click', toggleFavorite);
     $('#conversation-record').addEventListener('click', startJapaneseRecognition);
     $('#conversation-analyze').addEventListener('click', analyzeConversation);
-    $('#global-search').addEventListener('focus', event => { state.searchActive = true; renderSearchSuggestions(event.target.value.trim().toLowerCase()); });
+    $('#conversation-phrase-search').addEventListener('input', event => {
+      state.conversationPhraseQuery = event.target.value;
+      renderConversationPicker();
+    });
+    $('#trip-form').addEventListener('submit', saveTrip);
+    $('#trip-duration').addEventListener('change', renderItineraryBuilder);
+    $('#trip-date').addEventListener('change', renderItineraryBuilder);
+    $('#global-search').addEventListener('focus', event => { state.searchActive = true; renderSearch(event.target.value); });
     $('#global-search').addEventListener('input', event => { state.searchActive = true; renderSearch(event.target.value); });
     $('#global-search').addEventListener('keydown', event => {
       if (event.key !== 'Enter' || !event.target.value.trim()) return;
@@ -678,6 +1385,7 @@
     addEventListener('offline', setNetworkState);
   }
 
+  loadSharedTrip();
   renderCategories();
   renderConversationLog();
   saveState();

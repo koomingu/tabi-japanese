@@ -13,13 +13,13 @@
   <body>
     <main class="app-shell">
       <header class="topbar">
-        <a class="brand" href="#home" aria-label="tabi 검색">tabi<span>旅</span></a>
+        <a class="brand" href="#home" aria-label="tabi 홈">tabi<span>旅</span></a>
       </header>
-      <p class="offline-note" id="offline-note" hidden>오프라인 모드 · 북마크한 표현을 이용할 수 있어요</p>
+      <p class="offline-note" id="offline-note" hidden>오프라인 모드 · 여행팩을 오프라인에서도 볼 수 있어요</p>
 
       <section class="screen active" id="home-screen">
         <div class="home-search-only">
-          <div class="home-search-hero"><p class="eyebrow">ASK TABI</p><h1>필요한 말,<br /><em>10초 안에.</em></h1></div>
+          <div class="home-search-hero"><p class="eyebrow">QUICK FIND</p><h1>지금 필요한 말,<br /><em>바로 찾기.</em></h1></div>
           <label class="search-box" for="global-search">
             <span>⌕</span><input id="global-search" autocomplete="off" placeholder="무엇을 말하고 싶으세요?" />
           </label>
@@ -27,10 +27,56 @@
           <div id="search-results" class="search-results"></div>
           <div class="ask-answer" id="ask-answer"></div>
         </div>
+        <div class="trip-home" id="trip-home"></div>
+      </section>
+
+      <section class="screen" id="trip-setup-screen">
+        <button class="back-button" data-back>‹ <span>홈</span></button>
+        <div class="list-header"><p class="eyebrow">MAKE MY TABI</p><h1>여행을 알려주세요</h1><p>일정에 맞는 실전 표현을 바로 준비할게요.</p></div>
+        <form class="trip-form" id="trip-form">
+          <label>여행 도시
+            <select id="trip-city"><option value="도쿄">도쿄</option><option value="오사카">오사카</option><option value="후쿠오카">후쿠오카</option><option value="삿포로">삿포로</option><option value="교토">교토</option><option value="기타">기타 도시</option></select>
+          </label>
+          <label>출발일 <input id="trip-date" type="date" /></label>
+          <label>여행 기간
+            <select id="trip-duration"><option value="1">1일</option><option value="2">2일</option><option value="3" selected>3일</option><option value="4">4일</option><option value="5">5일</option><option value="6">6일</option><option value="7">7일</option></select>
+          </label>
+          <fieldset><legend>이번 여행에서 중요해요 <small>복수 선택</small></legend>
+            <div class="trip-interest-grid">
+              <label><input type="checkbox" name="trip-interest" value="식당" checked /><span>식당·카페</span></label>
+              <label><input type="checkbox" name="trip-interest" value="교통" checked /><span>교통·길찾기</span></label>
+              <label><input type="checkbox" name="trip-interest" value="숙소" checked /><span>숙소</span></label>
+              <label><input type="checkbox" name="trip-interest" value="쇼핑" /><span>쇼핑</span></label>
+              <label><input type="checkbox" name="trip-interest" value="관광지" /><span>관광</span></label>
+            </div>
+          </fieldset>
+          <fieldset class="trip-itinerary"><legend>날짜별로 무엇을 할 예정인가요? <small>자동 추천에 반영돼요</small></legend><div id="itinerary-builder"></div></fieldset>
+          <button class="trip-primary" type="submit">내 여행 말하기 팩 만들기</button>
+        </form>
+      </section>
+
+      <section class="screen" id="trip-pack-screen">
+        <button class="back-button" data-back>‹ <span>홈</span></button>
+        <div class="list-header"><p class="eyebrow">MY TRAVEL PACK</p><h1 id="trip-pack-title">나의 여행 말하기 팩</h1><p id="trip-pack-description"></p></div>
+        <div class="trip-pack-actions"><button class="trip-primary" data-action="open-travel-mode">여행 모드로 열기</button><div class="trip-pack-utility"><button class="trip-share" data-action="share-trip" aria-label="여행팩 공유" title="여행팩 공유"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V3M7 8l5-5 5 5M5 14v6h14v-6" /></svg></button><button class="trip-secondary" data-action="edit-trip">여행 설정 수정</button><button class="trip-delete" data-action="delete-trip" aria-label="여행팩 삭제" title="여행팩 삭제"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5" /></svg></button></div></div>
+        <section class="rehearsal-entry"><div><p class="eyebrow">30 SECOND REHEARSAL</p><h2>상황 하나, 대화 한 번</h2><p>내가 말하고 상대 답변까지 이어서 연습해요.</p></div><button data-action="start-rehearsal">연습 시작 <b>›</b></button></section>
+        <div id="trip-pack-list"></div>
+      </section>
+
+      <section class="screen" id="rehearsal-screen">
+        <button class="back-button" data-back>‹ <span>여행팩</span></button>
+        <div class="list-header"><p class="eyebrow">30 SECOND REHEARSAL</p><h1>한 상황을<br />연습해 볼까요?</h1><p>내가 할 말과 상대가 할 법한 답변을 짧게 이어서 확인해요.</p></div>
+        <div id="rehearsal-content"></div>
+      </section>
+
+      <section class="screen" id="travel-mode-screen">
+        <button class="back-button" data-back>‹ <span>여행팩</span></button>
+        <div class="travel-mode-hero"><p class="eyebrow">TRAVEL MODE</p><h1>현장에서<br /><em>바로 말하기.</em></h1><p>저장한 여행팩을 크게 보고, 듣고, 복사하세요.</p></div>
+        <div id="travel-mode-list" class="travel-mode-list"></div>
       </section>
 
       <section class="screen" id="browse-screen">
-        <div class="list-header"><p class="eyebrow">EXPLORE TABI</p><h1>여행 회화</h1><p>상황에 맞는 표현을 빠르게 찾아보세요.</p></div>
+        <div class="list-header"><p class="eyebrow">BEFORE YOUR TRIP</p><h1>상황별 표현</h1><p>여행 전에 필요한 말을 미리 둘러보세요.</p></div>
         <div class="section-heading"><h2>지금 필요한 상황</h2><span>10가지</span></div>
         <div class="category-grid" id="category-grid"></div>
         <button class="kana-card" id="kana-button"><span>あ</span><span><strong>히라가나 · 가타카나 익히기</strong><small>여행 전 알아두면 좋은 일본어 문자</small></span><b>›</b></button>
@@ -59,20 +105,23 @@
           <button class="icon-action large" id="detail-listen" aria-label="일본어 듣기" title="일본어 듣기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h4l5 4V6L8 10H4Zm12.5-2.5a6 6 0 0 1 0 9M19 5a10 10 0 0 1 0 14" /></svg></button>
           <button class="icon-action large" id="detail-copy" aria-label="일본어 복사하기" title="일본어 복사하기"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="12" rx="1.5" /><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v10A1.5 1.5 0 0 0 5.5 17H8" /></svg></button>
         </article>
-        <section class="detail-info expected-answers"><p class="eyebrow">EXPECTED REPLIES</p><h2>예상 답변</h2><div id="detail-expected-replies"></div></section>
-        <div class="detail-info note"><p class="eyebrow">TRAVEL TIP</p><h2>여행 팁</h2><p id="detail-note"></p></div>
-        <div class="detail-info"><p class="eyebrow">POLITE VERSION</p><h2>더 정중하게 말하기</h2><p class="japanese-inline" id="detail-polite"></p><p class="pronunciation-inline" id="detail-polite-reading"></p><p id="detail-polite-meaning"></p><button class="icon-action" id="detail-polite-listen" aria-label="일본어 듣기" title="일본어 듣기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h4l5 4V6L8 10H4Zm12.5-2.5a6 6 0 0 1 0 9M19 5a10 10 0 0 1 0 14" /></svg></button><button class="icon-action" id="detail-polite-copy" aria-label="일본어 복사하기" title="일본어 복사하기"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="12" rx="1.5" /><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 5.5 17H8" /></svg></button></div>
+        <section class="detail-info expected-answers"><p class="eyebrow">WHAT THEY MAY SAY</p><h2>상대방이 이렇게 말할 수 있어요</h2><div id="detail-expected-replies"></div></section>
+        <details class="detail-info compact-detail"><summary>여행 팁 보기</summary><p id="detail-note"></p></details>
+        <details class="detail-info compact-detail"><summary>더 정중하게 말하기</summary><p class="japanese-inline" id="detail-polite"></p><p class="pronunciation-inline" id="detail-polite-reading"></p><p id="detail-polite-meaning"></p><button class="icon-action" id="detail-polite-listen" aria-label="일본어 듣기" title="일본어 듣기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h4l5 4V6L8 10H4Zm12.5-2.5a6 6 0 0 1 0 9M19 5a10 10 0 0 1 0 14" /></svg></button><button class="icon-action" id="detail-polite-copy" aria-label="일본어 복사하기" title="일본어 복사하기"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="12" rx="1.5" /><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 5.5 17H8" /></svg></button></details>
       </section>
 
       <section class="screen" id="conversation-screen">
-        <div class="conversation-hero"><p class="eyebrow">CONVERSATION</p><h1>상대방 답변,<br /><em>바로 이해하기</em></h1><p>일본어를 녹음하거나 직접 입력해 보세요.</p></div>
+        <div class="conversation-hero"><p class="eyebrow">TRAVEL NOW</p><h1>말하고 듣는 일본어,<br /><em>한 화면에서.</em></h1><p>급한 여행 상황에서 바로 사용하세요.</p></div>
         <section class="conversation-mode" aria-labelledby="conversation-title">
-          <div class="conversation-heading"><p class="eyebrow">CONVERSATION MODE</p><h2 id="conversation-title">상대방 답변 이해하기</h2></div>
+          <div class="conversation-heading"><p class="eyebrow">FIELD PHRASE</p><h2 id="conversation-title">상대방 답변 이해하기</h2><p>상황을 고르고, 들은 말을 빠르게 확인하세요.</p></div>
+          <div class="situation-picker" role="tablist" aria-label="대화 상황"><button class="active" data-action="set-conversation-situation" data-situation="전체" role="tab">전체</button><button data-action="set-conversation-situation" data-situation="식당" role="tab">식당</button><button data-action="set-conversation-situation" data-situation="교통" role="tab">교통</button><button data-action="set-conversation-situation" data-situation="숙소" role="tab">숙소</button><button data-action="set-conversation-situation" data-situation="쇼핑" role="tab">쇼핑</button></div>
+          <div class="conversation-toggle" role="tablist" aria-label="대화 방식"><button class="active" data-action="set-conversation-mode" data-mode="listen" role="tab">일본어 듣기</button><button data-action="set-conversation-mode" data-mode="speak" role="tab">한국어로 말하기</button></div>
           <div class="conversation-input-wrap">
             <textarea id="conversation-input" rows="2" placeholder="상대방이 말한 일본어를 입력하거나 마이크를 눌러 녹음하세요."></textarea>
-            <div class="conversation-actions"><button class="conversation-mic" id="conversation-record" aria-label="일본어 답변 녹음">● 녹음 시작</button><button class="conversation-submit" id="conversation-analyze">이해하기</button></div>
+            <div class="conversation-actions"><button class="conversation-mic" id="conversation-record" aria-label="일본어 답변 말하기">● 말하기</button><button class="conversation-browse" data-action="toggle-conversation-picker">표현 찾기</button><button class="conversation-submit" id="conversation-analyze">이해하기</button></div>
           </div>
           <p class="conversation-note" id="conversation-note">마이크를 누르면 일본어 음성을 텍스트로 받아와요.</p>
+          <section class="conversation-picker" id="conversation-phrase-picker" hidden aria-label="표현 찾아보기"><label for="conversation-phrase-search">표현 찾아보기 <input id="conversation-phrase-search" type="search" autocomplete="off" placeholder="한국어 또는 일본어로 검색" /></label><div id="conversation-phrase-results"></div></section>
           <div class="conversation-result" id="conversation-result" hidden></div>
           <div class="conversation-log" id="conversation-log"></div>
         </section>
@@ -86,7 +135,8 @@
           <button class="review-card" id="review-button"><span>↻</span><div><strong>1분 빠른 복습</strong><small>여행 전에 핵심 표현을 다시 확인해요</small></div><b>›</b></button>
         </section>
         <section class="profile-section"><button class="profile-link" data-action="open-profile-list" data-list="history"><span><strong>최근 확인</strong><small id="history-description"></small></span><b>›</b></button></section>
-        <section class="profile-section"><button class="profile-link" data-action="open-profile-list" data-list="favorites"><span><strong>북마크한 표현</strong><small id="profile-favorites-count"></small></span><b>›</b></button></section>
+        <section class="profile-section"><button class="profile-link" data-action="open-profile-list" data-list="favorites"><span><strong>북마크한 표현</strong><small id="profile-favorites-count"></small></span><b>›</b></button><div class="profile-bookmark-categories" id="profile-bookmark-categories"></div></section>
+        <section class="profile-section pronunciation-setting"><div class="section-heading"><h2>발음 표기</h2></div><p>여행 중 보기 편한 표기 방식을 선택하세요.</p><div class="pronunciation-options" role="radiogroup" aria-label="발음 표기 방식"><button data-action="set-pronunciation-style" data-style="hangul" role="radio">한글형<br /><small>오미즈오 쿠다사이</small></button><button data-action="set-pronunciation-style" data-style="roman" role="radio">로마자형<br /><small>omizu o kudasai</small></button></div></section>
       </section>
 
       <section class="screen" id="review-screen">
@@ -104,7 +154,7 @@
         <div class="kana-grid" id="kana-grid"></div>
       </section>
     </main>
-    <nav class="bottom-nav"><button class="nav-item active" data-nav="home"><span>⌕</span>검색</button><button class="nav-item" data-nav="browse"><span>▦</span>둘러보기</button><button class="nav-item" data-nav="conversation"><span>◉</span>대화</button><button class="nav-item" data-nav="profile"><span>♙</span>프로필</button></nav>
+    <nav class="bottom-nav"><button class="nav-item active" data-nav="home"><span>⌂</span>홈</button><button class="nav-item" data-nav="browse"><span>▦</span>상황</button><button class="nav-item" data-nav="conversation"><span>◉</span>실시간 대화</button><button class="nav-item" data-nav="profile"><span>♙</span>프로필</button></nav>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="runtime-config.js"></script>
     <script>window.TABI_DATA_ONLY = true;</script>
