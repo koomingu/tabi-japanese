@@ -29,6 +29,7 @@
       return {};
     }
   };
+  const normalizeReadinessGoal = value => Math.max(5, Math.min(100, Math.round((Number(value) || 30) / 5) * 5));
 
   function conversationKey(japanese) {
     return String(japanese || '').normalize('NFKC').replace(/[\s、。！？!?,.]/g, '');
@@ -62,6 +63,7 @@
     conversationPickerOpen: false,
     conversationPhraseQuery: '',
     pronunciationStyle: localStorage.getItem(storageKey('pronunciation-style')) === 'roman' ? 'roman' : 'hangul',
+    readinessGoal: normalizeReadinessGoal(localStorage.getItem(storageKey('readiness-goal'))),
     bookmarkCategories: readMap('bookmark-categories'),
     bookmarkFilter: 'all',
     trip: readMap('trip'),
@@ -575,19 +577,19 @@
   function renderProfile() {
     const events = readList('events');
     const audioCount = events.filter(event => event.name === 'audio_play').length;
+    const readiness = Math.min(100, Math.round((state.views.length / state.readinessGoal) * 100));
     $('#stat-views').textContent = state.views.length;
     $('#stat-audio').textContent = audioCount;
     $('#stat-favorites').textContent = state.favorites.length;
-    $('#progress-label').textContent = state.views.length
-      ? `여행 준비 ${Math.min(100, Math.round((state.views.length / 12) * 100))}%`
-      : '';
+    $('#progress-label').textContent = `${readiness}% 준비`;
+    $('#readiness-message').textContent = state.views.length
+      ? readiness >= 100 ? `목표 ${state.readinessGoal}개를 달성했어요. 출발 전 복습으로 기억을 다져 보세요.` : `목표 ${state.readinessGoal}개 중 ${state.views.length}개를 확인했어요. 조금만 더 준비해 볼까요?`
+      : '표현을 확인하며 여행 준비를 시작해 보세요.';
+    $('#readiness-goal-input').value = state.readinessGoal;
+    $('#progress-bar').style.width = `${readiness}%`;
+    $('.progress-track').setAttribute('aria-valuenow', String(readiness));
     $('#history-description').textContent = state.views.length ? `${state.views.length}개 표현` : '아직 확인한 표현이 없어요';
     $('#profile-favorites-count').textContent = state.favorites.length ? `${state.favorites.length}개 표현` : '아직 북마크한 표현이 없어요';
-    const saved = state.favorites.map(findPhrase).filter(Boolean);
-    const counts = Object.keys(categoryMeta).map(category => [category, saved.filter(phrase => bookmarkCategory(phrase) === category).length]).filter(([, count]) => count);
-    $('#profile-bookmark-categories').innerHTML = counts.length
-      ? `<p>카테고리별 북마크</p><div>${counts.map(([category, count]) => `<button data-action="open-bookmark-category" data-category="${category}">${category}<span>${count}</span></button>`).join('')}</div>`
-      : '';
     $$('.pronunciation-options button').forEach(button => {
       const selected = button.dataset.style === state.pronunciationStyle;
       button.classList.toggle('active', selected);
@@ -760,6 +762,7 @@
     const sourceIds = ids.length ? ids : phrases.slice(0, 5).map(phrase => phrase.id);
     state.reviewItems = [...new Set(sourceIds)].map(findPhrase).filter(Boolean).slice(0, 5);
     state.reviewIndex = 0;
+    state.previousScreen = 'profile';
     renderReview();
     record('review_start');
     navigate('review', '');
@@ -767,15 +770,27 @@
 
   function renderReview() {
     const phrase = state.reviewItems[state.reviewIndex];
-    if (!phrase) return navigate('home');
-    $('#review-progress').textContent = `${state.reviewIndex + 1} / ${state.reviewItems.length} 표현`;
+    if (!phrase) return navigate('profile');
+    const current = state.reviewIndex + 1;
+    $('#review-progress').innerHTML = `<strong>${current}</strong><span>/ ${state.reviewItems.length} 표현</span>`;
+    $('#review-progress').setAttribute('aria-label', `${current} / ${state.reviewItems.length} 표현`);
+    $('#review-progress-bar').style.width = `${Math.round((current / state.reviewItems.length) * 100)}%`;
     $('#review-korean').textContent = phrase.ko;
     $('#review-japanese').innerHTML = japaneseWithYomi(phrase.jp, phrase.romaji);
     $('#review-romaji').textContent = displayPronunciation(phrase.romaji);
     $('#review-answer').hidden = true;
     $('#review-listen').hidden = true;
     $('#review-reveal').hidden = false;
-    $('#review-next').textContent = state.reviewIndex === state.reviewItems.length - 1 ? '복습 완료' : '다음 표현 ›';
+    $('#review-next').hidden = true;
+    $('#review-previous').hidden = state.reviewIndex === 0;
+    $('#review-card-panel').hidden = false;
+    $('#review-next').innerHTML = `${state.reviewIndex === state.reviewItems.length - 1 ? '복습 완료' : '다음 표현'} <span>›</span>`;
+  }
+
+  function completeReview() {
+    $('#review-completion-summary').textContent = `${state.reviewItems.length}개 표현을 모두 확인했어요. 여행 전 한 번 더 복습해도 좋아요.`;
+    record('review_complete', { count: state.reviewItems.length });
+    navigate('review-complete', 'profile');
   }
 
   const offlineSpeakAdditions = [
@@ -1310,6 +1325,11 @@
       renderProfile();
       showToast(`${state.pronunciationStyle === 'roman' ? '로마자형' : '한글형'} 발음 표기로 바꿨어요.`);
     }
+    if (action === 'adjust-readiness-goal') {
+      state.readinessGoal = normalizeReadinessGoal(state.readinessGoal + Number(target.dataset.adjustment || 0));
+      localStorage.setItem(storageKey('readiness-goal'), String(state.readinessGoal));
+      renderProfile();
+    }
     if (action === 'open-bookmark-category') {
       state.bookmarkFilter = category;
       openList('favorites');
@@ -1369,9 +1389,17 @@
       setTimeout(() => { state.searchActive = false; renderSearchSuggestions(''); }, 160);
     });
     $('#review-button').addEventListener('click', startReview);
-    $('#review-reveal').addEventListener('click', () => { $('#review-answer').hidden = false; $('#review-listen').hidden = false; $('#review-reveal').hidden = true; record('review_reveal'); });
+    $('#readiness-goal-input').addEventListener('change', event => {
+      state.readinessGoal = normalizeReadinessGoal(event.target.value);
+      localStorage.setItem(storageKey('readiness-goal'), String(state.readinessGoal));
+      renderProfile();
+      showToast(`목표를 ${state.readinessGoal}개 표현으로 설정했어요.`);
+    });
+    $('#review-reveal').addEventListener('click', () => { $('#review-answer').hidden = false; $('#review-listen').hidden = false; $('#review-reveal').hidden = true; $('#review-next').hidden = false; record('review_reveal'); });
     $('#review-listen').addEventListener('click', () => speak(state.reviewItems[state.reviewIndex].jp));
-    $('#review-next').addEventListener('click', () => { if (state.reviewIndex === state.reviewItems.length - 1) { record('review_complete'); navigate('home'); showToast('복습을 완료했어요!'); } else { state.reviewIndex += 1; renderReview(); } });
+    $('#review-next').addEventListener('click', () => { if (state.reviewIndex === state.reviewItems.length - 1) completeReview(); else { state.reviewIndex += 1; renderReview(); } });
+    $('#review-previous').addEventListener('click', () => { if (state.reviewIndex > 0) { state.reviewIndex -= 1; renderReview(); } });
+    $('#review-exit-profile').addEventListener('click', () => navigate('profile'));
     $('#kana-button').addEventListener('click', () => { state.previousScreen = 'browse'; renderKana(); navigate('kana', ''); });
     $$('.kana-tabs button').forEach(button => button.addEventListener('click', () => { state.kanaScript = button.dataset.kana; renderKana(); }));
     $$('.kana-groups button').forEach(button => button.addEventListener('click', () => { state.kanaGroup = button.dataset.kanaGroup; renderKana(); }));

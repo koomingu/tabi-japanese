@@ -128,22 +128,28 @@
       </section>
 
       <section class="screen" id="profile-screen">
-        <div class="list-header"><p class="eyebrow">MY TABI</p><h1>프로필</h1><p>여행 회화 준비 현황을 확인해 보세요.</p></div>
-        <section class="progress-section">
-          <div class="section-heading"><h2>나의 여행 준비</h2><span id="progress-label"></span></div>
-          <div class="progress-grid"><div><strong id="stat-views">0</strong><small>확인한 표현</small></div><div><strong id="stat-audio">0</strong><small>음성 듣기</small></div><div><strong id="stat-favorites">0</strong><small>북마크한 표현</small></div></div>
-          <button class="review-card" id="review-button"><span>↻</span><div><strong>1분 빠른 복습</strong><small>여행 전에 핵심 표현을 다시 확인해요</small></div><b>›</b></button>
+        <div class="list-header profile-header"><p class="eyebrow">MY TABI</p><h1>프로필</h1><p>여행 전에 익힌 표현과 복습할 내용을 한눈에 확인하세요.</p></div>
+        <section class="profile-readiness" aria-labelledby="readiness-title">
+          <div class="profile-readiness-top"><div><p class="eyebrow">TRAVEL READINESS</p><h2 id="readiness-title">나의 여행 준비</h2></div><span id="progress-label" class="progress-badge"></span></div>
+          <div class="readiness-goal" aria-label="여행 준비 목표 설정"><span><strong>목표 표현 수</strong><small>여행 전 확인하고 싶은 표현 수</small></span><div class="goal-stepper"><button type="button" data-action="adjust-readiness-goal" data-adjustment="-5" aria-label="목표 표현 수 5개 줄이기">−</button><label><span class="sr-only">목표 표현 수</span><input id="readiness-goal-input" type="number" inputmode="numeric" min="5" max="100" step="5" aria-label="목표 표현 수" /></label><span>개</span><button type="button" data-action="adjust-readiness-goal" data-adjustment="5" aria-label="목표 표현 수 5개 늘리기">+</button></div></div>
+          <p class="readiness-message" id="readiness-message">표현을 확인하며 여행 준비를 시작해 보세요.</p>
+          <div class="progress-track" role="progressbar" aria-label="여행 준비도" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="progress-bar"></span></div>
+          <div class="progress-grid" aria-label="학습 통계"><div><strong id="stat-views">0</strong><small>확인한 표현</small></div><div><strong id="stat-audio">0</strong><small>음성 듣기</small></div><div><strong id="stat-favorites">0</strong><small>북마크</small></div></div>
+          <button class="review-card" id="review-button"><span>↻</span><div><strong>1분 빠른 복습</strong><small>저장하거나 확인한 표현을 바로 복습해요</small></div><b aria-hidden="true">›</b></button>
         </section>
-        <section class="profile-section"><button class="profile-link" data-action="open-profile-list" data-list="history"><span><strong>최근 확인</strong><small id="history-description"></small></span><b>›</b></button></section>
-        <section class="profile-section"><button class="profile-link" data-action="open-profile-list" data-list="favorites"><span><strong>북마크한 표현</strong><small id="profile-favorites-count"></small></span><b>›</b></button><div class="profile-bookmark-categories" id="profile-bookmark-categories"></div></section>
-        <section class="profile-section pronunciation-setting"><div class="section-heading"><h2>발음 표기</h2></div><p>여행 중 보기 편한 표기 방식을 선택하세요.</p><div class="pronunciation-options" role="radiogroup" aria-label="발음 표기 방식"><button data-action="set-pronunciation-style" data-style="hangul" role="radio">한글형<br /><small>오미즈오 쿠다사이</small></button><button data-action="set-pronunciation-style" data-style="roman" role="radio">로마자형<br /><small>omizu o kudasai</small></button></div></section>
+        <section class="profile-section profile-library" aria-labelledby="library-title"><div class="profile-section-title"><div><p class="eyebrow">MY LIBRARY</p><h2 id="library-title">학습 기록</h2></div></div><div class="profile-link-list"><button class="profile-link" data-action="open-profile-list" data-list="history"><span class="profile-link-icon">◷</span><span><strong>최근 확인</strong><small id="history-description"></small></span><b aria-hidden="true">›</b></button><button class="profile-link" data-action="open-profile-list" data-list="favorites"><span class="profile-link-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.75A1.75 1.75 0 0 1 7.75 2h8.5A1.75 1.75 0 0 1 18 3.75V22l-6-3.75L6 22V3.75Z" /></svg></span><span><strong>북마크한 표현</strong><small id="profile-favorites-count"></small></span><b aria-hidden="true">›</b></button></div></section>
+        <section class="profile-section pronunciation-setting" aria-labelledby="pronunciation-title"><div class="profile-section-title"><div><p class="eyebrow">DISPLAY</p><h2 id="pronunciation-title">발음 표기</h2></div></div><p>여행 중 가장 빠르게 읽히는 방식을 선택하세요.</p><div class="pronunciation-options" role="radiogroup" aria-label="발음 표기 방식"><button data-action="set-pronunciation-style" data-style="hangul" role="radio"><strong>한글형</strong><small>오미즈오 쿠다사이</small></button><button data-action="set-pronunciation-style" data-style="roman" role="radio"><strong>로마자형</strong><small>omizu o kudasai</small></button></div></section>
       </section>
 
       <section class="screen" id="review-screen">
-        <button class="back-button" data-back>‹ <span>홈</span></button>
-        <div class="list-header"><p class="eyebrow">QUICK REVIEW</p><h1>1분 복습</h1><p id="review-progress"></p></div>
-        <article class="review-card-panel"><p class="eyebrow">KOREAN MEANING</p><h2 id="review-korean"></h2><div class="review-answer" id="review-answer" hidden><p class="japanese" id="review-japanese"></p><p class="romaji" id="review-romaji"></p></div><button class="review-reveal" id="review-reveal">일본어 표현 보기</button><button class="review-listen" id="review-listen" hidden>▶ 일본어로 듣기</button></article>
-        <button class="review-next" id="review-next">다음 표현 <span>›</span></button>
+        <button class="back-button" data-back>‹ <span>프로필</span></button>
+        <div class="review-header"><p class="eyebrow">QUICK REVIEW</p><div><h1>1분 복습</h1><div id="review-progress" class="review-progress" aria-label="복습 진행도"></div></div><div class="review-progress-track" aria-hidden="true"><span id="review-progress-bar"></span></div><p>뜻을 먼저 떠올린 뒤, 일본어 표현을 확인해 보세요.</p></div>
+        <article class="review-card-panel" id="review-card-panel"><div class="review-prompt"><p>KOREAN MEANING</p></div><h2 id="review-korean"></h2><div class="review-answer" id="review-answer" hidden><p class="eyebrow">JAPANESE PHRASE</p><p class="japanese" id="review-japanese"></p><p class="romaji" id="review-romaji"></p></div><div class="review-actions"><button class="review-reveal" id="review-reveal">일본어 표현 확인하기</button><button class="review-listen" id="review-listen" hidden>▶ 일본어로 듣기</button></div></article>
+        <div class="review-navigation"><button class="review-previous" id="review-previous" hidden>‹ 이전 표현</button><button class="review-next" id="review-next" hidden>다음 표현 <span>›</span></button></div>
+      </section>
+
+      <section class="screen" id="review-complete-screen">
+        <div class="review-complete-page"><span class="review-completion-icon">✓</span><p class="eyebrow">REVIEW COMPLETE</p><h1>복습을 완료했어요!</h1><p id="review-completion-summary"></p><button id="review-exit-profile">돌아가기 <span>›</span></button></div>
       </section>
 
       <section class="screen" id="kana-screen">
