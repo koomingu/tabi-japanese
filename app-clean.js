@@ -353,9 +353,6 @@
   function setConversationSituation(situation) {
     state.conversationSituation = situationReplyPreview[situation] ? situation : '전체';
     $$('.situation-picker button').forEach(button => button.classList.toggle('active', button.dataset.situation === state.conversationSituation));
-    const label = state.conversationSituation === '전체' ? '모든 여행 상황' : `${state.conversationSituation} 상황`;
-    $('#conversation-note').textContent = `${label}에 맞춰 자주 쓰는 답변과 다음 문장을 안내해요.`;
-    $('#conversation-result').hidden = true;
     renderConversationPicker();
     record('conversation_situation_selected', { situation: state.conversationSituation });
   }
@@ -692,7 +689,7 @@
       ? (bookmarkCount ? `${bookmarkCount}개의 단어와 표현을 저장했어요.` : '아직 북마크한 단어·표현이 없어요.')
       : list.length ? `${list.length}개의 표현을 준비했어요.` : type === 'history' ? '아직 확인한 표현이 없어요.' : type === 'custom' ? '사진이나 자막에서 표현을 가져와 보세요.' : '아직 북마크한 표현이 없어요.';
     const isCategory = !labels[type];
-    $('#quick-word-entry').innerHTML = type === 'favorites' ? `<div class="bookmark-filter">${['all', ...Object.keys(categoryMeta)].map(category => `<button class="${state.bookmarkFilter === category ? 'active' : ''}" data-action="set-bookmark-filter" data-category="${category}">${category === 'all' ? '전체' : category}</button>`).join('')}</div>` : isCategory ? quickWordPreview(type) : quickWords[type] ? `
+    $('#quick-word-entry').innerHTML = type === 'custom' ? `<button class="custom-add-entry" data-action="open-import"><span>＋</span><span><strong>새 표현 추가</strong><small>사진이나 자막에서 표현을 가져와 보세요</small></span><b>›</b></button>` : type === 'favorites' ? `<div class="bookmark-filter">${['all', ...Object.keys(categoryMeta)].map(category => `<button class="${state.bookmarkFilter === category ? 'active' : ''}" data-action="set-bookmark-filter" data-category="${category}">${category === 'all' ? '전체' : category}</button>`).join('')}</div>` : isCategory ? quickWordPreview(type) : quickWords[type] ? `
       <button class="quick-word-entry" data-action="open-quick-words" data-category="${type}">
         <span>🔖</span><div><strong>바로 쓰는 필수 단어</strong><small>상황별 핵심 단어를 한눈에 확인해요</small></div><b>›</b>
       </button>` : '';
@@ -1100,7 +1097,8 @@
       keywords: ['인식 결과를 직접 확인해 보세요'],
       suggestions: conversationSuggestions(state.conversationSituation, ['ゆっくり話してください。', 'もう一度お願いします。']),
       expected: situationReplyPreview[state.conversationSituation] || situationReplyPreview['전체'],
-      status: '가까운 상황 표현을 안내해요'
+      status: '가까운 상황 표현을 안내해요',
+      ambiguous: true
     };
   }
 
@@ -1191,6 +1189,12 @@
     state.conversationHistory = deduplicateConversationHistory([entry, ...state.conversationHistory]).slice(0, 20);
     saveState();
     renderConversationResult(answer);
+    if (answer.ambiguous) {
+      state.conversationPickerOpen = true;
+      state.conversationSituation = '전체';
+      $$('.situation-picker button').forEach(button => button.classList.remove('active'));
+      renderConversationPicker();
+    }
     renderConversationLog();
     record(isSpeak ? 'conversation_spoken' : 'conversation_understood');
   }
@@ -1509,6 +1513,10 @@
     if (action === 'toggle-conversation-picker') {
       state.conversationPickerOpen = !state.conversationPickerOpen;
       state.conversationPhraseQuery = '';
+      if (state.conversationPickerOpen) {
+        state.conversationSituation = '전체';
+        $$('.situation-picker button').forEach(button => button.classList.remove('active'));
+      }
       renderConversationPicker();
       if (state.conversationPickerOpen) $('#conversation-phrase-search').focus();
     }
@@ -1605,7 +1613,7 @@
     $('#review-next').addEventListener('click', () => { if (state.reviewIndex === state.reviewItems.length - 1) completeReview(); else { state.reviewIndex += 1; renderReview(); } });
     $('#review-previous').addEventListener('click', () => { if (state.reviewIndex > 0) { state.reviewIndex -= 1; renderReview(); } });
     $('#review-exit-profile').addEventListener('click', () => navigate('profile'));
-    $('#kana-button').addEventListener('click', () => { state.previousScreen = 'browse'; renderKana(); navigate('kana', ''); });
+    $('#kana-button').addEventListener('click', () => { state.previousScreen = 'profile'; renderKana(); navigate('kana', ''); });
     $$('.kana-tabs button').forEach(button => button.addEventListener('click', () => { state.kanaScript = button.dataset.kana; renderKana(); }));
     $$('.kana-groups button').forEach(button => button.addEventListener('click', () => { state.kanaGroup = button.dataset.kanaGroup; renderKana(); }));
   }

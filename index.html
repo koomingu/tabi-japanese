@@ -26,7 +26,6 @@
           <div class="search-suggestions" id="search-suggestions" hidden></div>
           <div id="search-results" class="search-results"></div>
           <div class="ask-answer" id="ask-answer"></div>
-          <button class="import-entry" data-action="open-import"><span>＋</span><span><strong>사진·릴스에서 표현 가져오기</strong><small>스크린샷이나 공개 링크에서 일본어 표현을 찾아요</small></span><b>›</b></button>
         </div>
         <div class="trip-home" id="trip-home"></div>
       </section>
@@ -94,7 +93,6 @@
         <div class="list-header"><p class="eyebrow">BEFORE YOUR TRIP</p><h1>상황별 표현</h1><p>여행 전에 필요한 말을 미리 둘러보세요.</p></div>
         <div class="section-heading"><h2>지금 필요한 상황</h2><span>10가지</span></div>
         <div class="category-grid" id="category-grid"></div>
-        <button class="kana-card" id="kana-button"><span>あ</span><span><strong>히라가나 · 가타카나 익히기</strong><small>여행 전 알아두면 좋은 일본어 문자</small></span><b>›</b></button>
       </section>
 
       <section class="screen" id="list-screen">
@@ -126,17 +124,15 @@
       </section>
 
       <section class="screen" id="conversation-screen">
-        <div class="conversation-hero"><p class="eyebrow">TRAVEL NOW</p><h1>말하고 듣는 일본어,<br /><em>한 화면에서.</em></h1><p>급한 여행 상황에서 바로 사용하세요.</p></div>
         <section class="conversation-mode" aria-labelledby="conversation-title">
-          <div class="conversation-heading"><p class="eyebrow">FIELD PHRASE</p><h2 id="conversation-title">상대방 답변 이해하기</h2><p>상황을 고르고, 들은 말을 빠르게 확인하세요.</p></div>
-          <div class="situation-picker" role="tablist" aria-label="대화 상황"><button class="active" data-action="set-conversation-situation" data-situation="전체" role="tab">전체</button><button data-action="set-conversation-situation" data-situation="식당" role="tab">식당</button><button data-action="set-conversation-situation" data-situation="교통" role="tab">교통</button><button data-action="set-conversation-situation" data-situation="숙소" role="tab">숙소</button><button data-action="set-conversation-situation" data-situation="쇼핑" role="tab">쇼핑</button></div>
+          <div class="list-header conversation-heading"><p class="eyebrow">REAL-TIME CONVERSATION</p><h1 id="conversation-title">상대방 답변 이해하기</h1><p>듣거나 말한 내용을 빠르게 확인하세요.</p></div>
           <div class="conversation-toggle" role="tablist" aria-label="대화 방식"><button class="active" data-action="set-conversation-mode" data-mode="listen" role="tab">일본어 듣기</button><button data-action="set-conversation-mode" data-mode="speak" role="tab">한국어로 말하기</button></div>
           <div class="conversation-input-wrap">
             <textarea id="conversation-input" rows="2" placeholder="상대방이 말한 일본어를 입력하거나 마이크를 눌러 녹음하세요."></textarea>
             <div class="conversation-actions"><button class="conversation-mic" id="conversation-record" aria-label="일본어 답변 말하기">● 말하기</button><button class="conversation-browse" data-action="toggle-conversation-picker">표현 찾기</button><button class="conversation-submit" id="conversation-analyze">이해하기</button></div>
           </div>
           <p class="conversation-note" id="conversation-note">마이크를 누르면 일본어 음성을 텍스트로 받아와요.</p>
-          <section class="conversation-picker" id="conversation-phrase-picker" hidden aria-label="표현 찾아보기"><label for="conversation-phrase-search">표현 찾아보기 <input id="conversation-phrase-search" type="search" autocomplete="off" placeholder="한국어 또는 일본어로 검색" /></label><div id="conversation-phrase-results"></div></section>
+          <section class="conversation-picker" id="conversation-phrase-picker" hidden aria-label="표현 찾아보기"><div class="situation-picker" role="tablist" aria-label="표현 카테고리"><button data-action="set-conversation-situation" data-situation="식당" role="tab">식당</button><button data-action="set-conversation-situation" data-situation="교통" role="tab">교통</button><button data-action="set-conversation-situation" data-situation="숙소" role="tab">숙소</button><button data-action="set-conversation-situation" data-situation="쇼핑" role="tab">쇼핑</button></div><label for="conversation-phrase-search">표현 찾아보기 <input id="conversation-phrase-search" type="search" autocomplete="off" placeholder="한국어 또는 일본어로 검색" /></label><div id="conversation-phrase-results"></div></section>
           <div class="conversation-result" id="conversation-result" hidden></div>
           <div class="conversation-log" id="conversation-log"></div>
         </section>
@@ -151,6 +147,7 @@
           <div class="progress-track" role="progressbar" aria-label="여행 준비도" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="progress-bar"></span></div>
           <div class="progress-grid" aria-label="학습 통계"><div><strong id="stat-views">0</strong><small>확인한 표현</small></div><div><strong id="stat-audio">0</strong><small>음성 듣기</small></div><div><strong id="stat-favorites">0</strong><small>북마크</small></div></div>
           <button class="review-card" id="review-button"><span>↻</span><div><strong>1분 빠른 복습</strong><small>저장하거나 확인한 표현을 바로 복습해요</small></div><b aria-hidden="true">›</b></button>
+          <button class="kana-card" id="kana-button"><span>あ</span><span><strong>히라가나 · 가타카나 익히기</strong><small>표지판과 메뉴를 읽기 위한 일본어 기초</small></span><b aria-hidden="true">›</b></button>
         </section>
         <section class="profile-section profile-library" aria-labelledby="library-title"><div class="profile-section-title"><div><p class="eyebrow">MY LIBRARY</p><h2 id="library-title">학습 기록</h2></div></div><div class="profile-link-list"><button class="profile-link" data-action="open-profile-list" data-list="history"><span class="profile-link-icon">◷</span><span><strong>최근 확인</strong><small id="history-description"></small></span><b aria-hidden="true">›</b></button><button class="profile-link" data-action="open-profile-list" data-list="custom"><span class="profile-link-icon">＋</span><span><strong>내가 추가한 표현</strong><small id="profile-custom-count"></small></span><b aria-hidden="true">›</b></button><button class="profile-link" data-action="open-profile-list" data-list="favorites"><span class="profile-link-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.75A1.75 1.75 0 0 1 7.75 2h8.5A1.75 1.75 0 0 0 18 3.75V22l-6-3.75L6 22V3.75Z" /></svg></span><span><strong>북마크한 단어·표현</strong><small id="profile-favorites-count"></small></span><b aria-hidden="true">›</b></button></div></section>
         <section class="profile-section pronunciation-setting" aria-labelledby="pronunciation-title"><div class="profile-section-title"><div><p class="eyebrow">DISPLAY</p><h2 id="pronunciation-title">발음 표기</h2></div></div><p>여행 중 가장 빠르게 읽히는 방식을 선택하세요.</p><div class="pronunciation-options" role="radiogroup" aria-label="발음 표기 방식"><button data-action="set-pronunciation-style" data-style="hangul" role="radio"><strong>한글형</strong><small>오미즈오 쿠다사이</small></button><button data-action="set-pronunciation-style" data-style="roman" role="radio"><strong>로마자형</strong><small>omizu o kudasai</small></button></div></section>
@@ -168,7 +165,7 @@
       </section>
 
       <section class="screen" id="kana-screen">
-        <button class="back-button" data-back>‹ <span>홈</span></button>
+        <button class="back-button" data-back>‹ <span>프로필</span></button>
         <div class="list-header"><p class="eyebrow">JAPANESE BASICS</p><h1>문자 익히기</h1><p>글자를 누르면 발음을 들을 수 있어요.</p></div>
         <div class="kana-tabs"><button class="active" data-kana="hiragana">히라가나</button><button data-kana="katakana">가타카나</button></div>
         <div class="kana-groups"><button class="active" data-kana-group="basic">기본음</button><button data-kana-group="voiced">탁음 · 반탁음</button><button data-kana-group="contracted">요음</button></div>
