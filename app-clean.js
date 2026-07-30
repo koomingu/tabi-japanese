@@ -73,6 +73,7 @@
     bookmarkCategories: readMap('bookmark-categories'),
     bookmarkFilter: 'all',
     trip: readMap('trip'),
+    travelMission: '',
     rehearsalPhrase: null,
     rehearsalStage: 0,
     rehearsalSpokenText: '',
@@ -406,6 +407,14 @@
 
   const tripCategoryMap = { 공항: ['공항'], 식당: ['식당', '카페'], 교통: ['교통', '길 묻기'], 숙소: ['숙소'], 쇼핑: ['쇼핑'], 관광지: ['관광지'] };
   const itineraryOptions = ['공항', '숙소', '식당', '교통', '관광지', '쇼핑'];
+  const missionCopy = {
+    공항: ['공항에서 이동 준비하기', '체크인과 이동 중 바로 필요한 말을 준비해요.'],
+    숙소: ['숙소에서 체크인하기', '예약 확인부터 필요한 요청까지 짧게 연습해요.'],
+    식당: ['식당에서 주문하기', '메뉴를 고르고 주문을 마칠 때 필요한 말이에요.'],
+    교통: ['다음 목적지로 이동하기', '역과 길에서 바로 꺼내 말할 표현이에요.'],
+    관광지: ['관광지에서 길 묻기', '입장과 길 안내에 필요한 말을 준비해요.'],
+    쇼핑: ['가게에서 원하는 물건 찾기', '사이즈·재고·결제를 자연스럽게 물어봐요.']
+  };
   const cityPhrases = {
     도쿄: { id: 'city-tokyo', cat: '도쿄에서 바로 쓰는 말', jp: '東京駅に行きたいです。', romaji: '토오쿄오에키니 이키타이데스.', ko: '도쿄역에 가고 싶어요.', use: '도쿄에서 역과 전철을 이용할 때 바로 말해요.', note: '역 이름은 지도 화면을 함께 보여 주면 더 정확해요.' },
     오사카: { id: 'city-osaka', cat: '오사카에서 바로 쓰는 말', jp: '大阪城に行きたいです。', romaji: '오오사카조오니 이키타이데스.', ko: '오사카성에 가고 싶어요.', use: '오사카 관광지로 가는 길을 물을 때 바로 말해요.', note: '목적지는 지도 화면을 함께 보여 주면 더 정확해요.' },
@@ -424,6 +433,21 @@
     const essentials = phrases.filter(phrase => phrase.cat === '긴급 상황').slice(0, 2);
     const cityPhrase = cityPhrases[state.trip.city];
     return [...new Map([cityPhrase, ...chosen, ...essentials].filter(Boolean).map(phrase => [phrase.id, phrase])).values()].map(phrase => phrase.id);
+  }
+
+  function tripMissions() {
+    const itinerary = Array.isArray(state.trip.itinerary) && state.trip.itinerary.length ? state.trip.itinerary : defaultItinerary(state.trip.duration || 3);
+    return itinerary.flatMap(day => (day.scenarios || []).map((scenario, index) => {
+      const [title, description] = missionCopy[scenario] || [`${scenario}에서 바로 말하기`, '지금 필요한 표현을 짧게 준비해요.'];
+      const categories = tripCategoryMap[scenario] || [scenario];
+      const phrase = tripPhraseIds().map(findPhrase).find(item => item && categories.includes(item.cat));
+      return { day: day.day, order: index + 1, scenario, title, description, phrase };
+    }));
+  }
+
+  function currentTripMission() {
+    const activeDay = activeItineraryDay().day;
+    return tripMissions().find(mission => mission.day === activeDay) || tripMissions()[0] || null;
   }
 
   function formatTripDate(value) {
@@ -461,11 +485,11 @@
   function renderTripHome() {
     const host = $('#trip-home');
     if (!state.trip.ready) {
-      host.innerHTML = `<section class="trip-hero"><p class="eyebrow">MY JAPAN TRIP</p><h1>일본 여행에서<br /><em>당황하지 않게.</em></h1><p>도시와 필요한 상황을 고르면, 말하기와 예상 답변을 한 팩으로 준비해 드려요.</p><button class="trip-primary" data-action="start-trip">내 여행팩 만들기</button><small>약 30초 · 가입 없이 저장돼요</small></section>`;
+      host.innerHTML = `<section class="trip-hero"><p class="eyebrow">MY JAPAN TRIP</p><h1>여행 중 필요한 말,<br /><em>순서대로 준비하기.</em></h1><p>일정을 고르면 그날 해야 할 말과 예상 답변을 말하기 플랜으로 정리해 드려요.</p><button class="trip-primary" data-action="start-trip">내 말하기 플랜 만들기</button></section>`;
       return;
     }
-    const count = tripPhraseIds().length;
-    host.innerHTML = `<section class="trip-ready-card"><div class="trip-ready-top"><p class="eyebrow">MY TRAVEL PACK</p><span>${escapeHtml(state.trip.city || '일본')} · ${formatTripDate(state.trip.date)}</span></div><h2>${escapeHtml(state.trip.city || '일본')} 여행 말하기 팩</h2><p>필요한 말과 예상 답변을 여행 전에 준비해 두세요.</p><div class="trip-ready-bottom"><span class="trip-ready-count"><b>${count}</b>개 실전 표현</span><button data-action="open-trip-pack">여행팩 열기 <b>›</b></button></div></section>`;
+    const mission = currentTripMission();
+    host.innerHTML = `<section class="trip-ready-card"><div class="trip-ready-top"><p class="eyebrow">TODAY'S SPEAKING PLAN</p><span>${escapeHtml(state.trip.city || '일본')} · ${mission ? `DAY ${mission.day}` : formatTripDate(state.trip.date)}</span></div><h2>${escapeHtml(mission?.title || '여행 말하기 플랜')}</h2><p>${escapeHtml(mission?.description || '오늘 일정에 맞는 말하기 미션을 준비해 두세요.')}</p><div class="trip-ready-bottom"><span class="trip-ready-count"><b>${tripMissions().length}</b>개 여행 미션</span><button data-action="open-trip-pack">오늘 플랜 보기 <b>›</b></button></div></section>`;
   }
 
   function fillTripForm() {
@@ -522,33 +546,31 @@
 
   function deleteTrip() {
     if (!state.trip.ready) return;
-    const confirmed = window.confirm('이 여행팩을 삭제할까요? 저장한 북마크와 최근 기록은 유지됩니다.');
+    const confirmed = window.confirm('이 말하기 플랜을 삭제할까요? 저장한 북마크와 최근 기록은 유지됩니다.');
     if (!confirmed) return;
     const city = state.trip.city;
     state.trip = {};
     saveState();
     record('trip_pack_deleted', { city });
-    showToast('여행팩을 삭제했어요.');
+    showToast('말하기 플랜을 삭제했어요.');
     navigate('home');
   }
 
   function renderTripPack() {
     const pack = tripPhraseIds().map(findPhrase).filter(Boolean);
-    $('#trip-pack-title').textContent = `${state.trip.city || '나의'} 여행 말하기 팩`;
-    $('#trip-pack-description').textContent = `${formatTripDate(state.trip.date)} · ${pack.length}개 표현을 미리 말해 보고, 상대 답변도 확인하세요.`;
-    $('#trip-pack-list').innerHTML = pack.length ? Object.entries(pack.reduce((groups, phrase) => {
-      const group = groups[phrase.cat] || [];
-      group.push(phrase);
-      groups[phrase.cat] = group;
-      return groups;
-    }, {})).map(([category, items]) => `<section class="trip-pack-group"><p class="eyebrow">${escapeHtml(category)}</p><h2>${escapeHtml(category)}에서 쓰는 말</h2>${items.map(phrase => phraseCard(phrase)).join('')}</section>`).join('') : '<p class="profile-empty">여행 설정을 완료하면 말하기 팩이 만들어져요.</p>';
+    const activeDay = activeItineraryDay().day;
+    const missions = tripMissions();
+    $('#trip-pack-title').textContent = `${state.trip.city || '나의'} 여행 말하기 플랜`;
+    $('#trip-pack-description').textContent = `${formatTripDate(state.trip.date)} · 오늘 할 일을 따라, 필요한 말을 순서대로 준비하세요.`;
+    $('#trip-pack-list').innerHTML = pack.length ? `<div class="trip-plan-heading"><p class="eyebrow">YOUR TRAVEL MISSIONS</p><h2>일정에 맞춰 하나씩 끝내세요</h2></div><div class="trip-mission-list">${missions.map(mission => `<article class="trip-mission-card ${mission.day === activeDay ? 'is-today' : ''}"><div class="trip-mission-meta"><span>DAY ${mission.day} · ${mission.order}</span>${mission.day === activeDay ? '<b>오늘</b>' : ''}</div><h2>${escapeHtml(mission.title)}</h2><p>${escapeHtml(mission.description)}</p>${mission.phrase ? `<div class="trip-mission-phrase"><span>먼저 이 말부터</span><strong>${japaneseWithYomi(mission.phrase.jp, mission.phrase.romaji)}</strong><small>${escapeHtml(mission.phrase.ko)}</small></div>` : ''}<div class="trip-mission-actions"><button data-action="open-mission-mode" data-scenario="${escapeHtml(mission.scenario)}">현장에서 쓰기 <b>›</b></button><button data-action="start-rehearsal" data-scenario="${escapeHtml(mission.scenario)}">30초 연습</button></div></article>`).join('')}</div>` : '<p class="profile-empty">여행 설정을 완료하면 말하기 플랜이 만들어져요.</p>';
     record('trip_pack_opened', { count: pack.length });
   }
 
   function renderTravelMode() {
-    const pack = tripPhraseIds().map(findPhrase).filter(Boolean);
-    const next = nextSituationRecommendation();
-    $('#travel-mode-list').innerHTML = pack.length ? `${pack.map(phrase => `<article class="travel-mode-card" data-action="open-phrase" data-id="${phrase.id}" role="button" tabindex="0"><span>${escapeHtml(phrase.cat)}</span><strong>${japaneseWithYomi(phrase.jp, phrase.romaji)}</strong><em>${escapeHtml(displayPronunciation(phrase.romaji))}</em><small>${escapeHtml(phrase.ko)}</small><div class="travel-mode-actions"><button class="icon-action" data-action="speak" data-id="${phrase.id}" aria-label="${escapeHtml(phrase.jp)} 듣기" title="일본어 듣기">${icons.listen}</button><button class="icon-action" data-action="copy-phrase" data-id="${phrase.id}" aria-label="${escapeHtml(phrase.jp)} 복사하기" title="일본어 복사하기">${icons.copy}</button><button class="icon-action ${state.favorites.includes(phrase.id) ? 'is-active' : ''}" data-action="toggle-favorite" data-id="${phrase.id}" aria-label="${escapeHtml(phrase.jp)} 북마크" title="북마크">${icons.bookmark}</button></div></article>`).join('')}<section class="travel-mode-next"><p class="eyebrow">DAY ${next.day} · NEXT UP</p><h2>이어서 ${escapeHtml(next.scenario)} 상황을 준비해요</h2><p>오늘의 일정과 방금 본 표현을 바탕으로 다음 상황을 추천했어요.</p><button data-action="start-rehearsal" data-scenario="${escapeHtml(next.scenario)}">${escapeHtml(next.scenario)} 리허설 시작 <b>›</b></button></section>` : '<p class="profile-empty">먼저 여행팩을 만들어 주세요.</p>';
+    const mission = tripMissions().find(item => item.scenario === state.travelMission) || currentTripMission();
+    const categories = mission ? tripCategoryMap[mission.scenario] || [mission.scenario] : [];
+    const pack = tripPhraseIds().map(findPhrase).filter(phrase => !categories.length || categories.includes(phrase?.cat));
+    $('#travel-mode-list').innerHTML = pack.length ? `<section class="travel-mode-mission"><p class="eyebrow">DAY ${mission?.day || 1} · NOW</p><h2>${escapeHtml(mission?.title || '지금 필요한 말')}</h2><p>${escapeHtml(mission?.description || '아래 표현을 듣고 바로 보여 주세요.')}</p></section>${pack.map(phrase => `<article class="travel-mode-card" data-action="open-phrase" data-id="${phrase.id}" role="button" tabindex="0"><span>${escapeHtml(phrase.cat)}</span><strong>${japaneseWithYomi(phrase.jp, phrase.romaji)}</strong><em>${escapeHtml(displayPronunciation(phrase.romaji))}</em><small>${escapeHtml(phrase.ko)}</small><div class="travel-mode-actions"><button class="icon-action" data-action="speak" data-id="${phrase.id}" aria-label="${escapeHtml(phrase.jp)} 듣기" title="일본어 듣기">${icons.listen}</button><button class="icon-action" data-action="copy-phrase" data-id="${phrase.id}" aria-label="${escapeHtml(phrase.jp)} 복사하기" title="일본어 복사하기">${icons.copy}</button><button class="icon-action ${state.favorites.includes(phrase.id) ? 'is-active' : ''}" data-action="toggle-favorite" data-id="${phrase.id}" aria-label="${escapeHtml(phrase.jp)} 북마크" title="북마크">${icons.bookmark}</button></div></article>`).join('')}<section class="travel-mode-next"><p class="eyebrow">30 SECOND REHEARSAL</p><h2>상대 답변까지 연습하기</h2><p>지금 미션에서 실제로 대화가 이어질 때를 대비해요.</p><button data-action="start-rehearsal" data-scenario="${escapeHtml(mission?.scenario || '')}">이 미션 연습하기 <b>›</b></button></section>` : '<p class="profile-empty">먼저 말하기 플랜을 만들어 주세요.</p>';
     record('travel_mode_opened', { count: pack.length });
   }
 
@@ -558,12 +580,12 @@
     url.searchParams.set('tabi-city', state.trip.city || '일본');
     if (state.trip.date) url.searchParams.set('tabi-date', state.trip.date);
     url.searchParams.set('tabi-interests', (state.trip.interests || []).join(','));
-    const shareData = { title: `${state.trip.city || '일본'} 여행 말하기 팩`, text: '일본 여행에서 바로 쓸 표현을 함께 준비해요.', url: url.toString() };
+    const shareData = { title: `${state.trip.city || '일본'} 여행 말하기 플랜`, text: '여행 일정에 맞는 말하기 미션을 함께 준비해요.', url: url.toString() };
     try {
       if (navigator.share) await navigator.share(shareData);
       else {
         await navigator.clipboard.writeText(shareData.url);
-        showToast('여행팩 링크를 복사했어요.');
+        showToast('말하기 플랜 링크를 복사했어요.');
       }
       record('trip_pack_shared', { city: state.trip.city });
     } catch (error) {
@@ -1483,7 +1505,8 @@
     if (action === 'rehearsal-finish') { state.rehearsalStage = 3; renderRehearsal(); record('rehearsal_completed'); }
     if (action === 'delete-trip') deleteTrip();
     if (action === 'open-trip-pack') { state.previousScreen = $('.screen.active').id.replace('-screen', ''); navigate('trip-pack', ''); }
-    if (action === 'open-travel-mode') { state.previousScreen = 'trip-pack'; navigate('travel-mode', ''); }
+    if (action === 'open-travel-mode') { state.travelMission = currentTripMission()?.scenario || ''; state.previousScreen = 'trip-pack'; navigate('travel-mode', ''); }
+    if (action === 'open-mission-mode') { state.travelMission = target.dataset.scenario || ''; state.previousScreen = 'trip-pack'; navigate('travel-mode', ''); }
     if (action === 'open-conversation') { state.previousScreen = 'travel-mode'; navigate('conversation'); }
     if (action === 'open-import') { state.previousScreen = $('.screen.active').id.replace('-screen', ''); navigate('import', ''); }
     if (action === 'save-imported-phrases') saveImportedPhrases();
