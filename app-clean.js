@@ -52,6 +52,7 @@
 
   const state = {
     favorites: readList('favorites'),
+    wordFavorites: readList('word-favorites').filter(word => word && word.category && word.jp),
     views: readList('views'),
     recentSearches: readList('recent-searches'),
     conversationHistory: deduplicateConversationHistory(readList('conversation-history')),
@@ -246,8 +247,57 @@
     return state.bookmarkCategories[phrase.id] || phrase.cat;
   }
 
+  function wordFavoriteIndex(category, jp) {
+    return state.wordFavorites.findIndex(word => word.category === category && word.jp === jp);
+  }
+
+  function isWordFavorite(category, jp) {
+    return wordFavoriteIndex(category, jp) !== -1;
+  }
+
+  function toggleWordFavorite(word) {
+    const index = wordFavoriteIndex(word.category, word.jp);
+    const isAdding = index === -1;
+    if (isAdding) {
+      state.wordFavorites.push({
+        category: word.category,
+        jp: word.jp,
+        reading: word.reading || '',
+        ko: word.ko || ''
+      });
+    } else {
+      state.wordFavorites.splice(index, 1);
+    }
+    saveState();
+    showToast(isAdding ? '단어를 북마크에 추가했어요.' : '단어 북마크를 해제했어요.');
+    return isAdding;
+  }
+
+  function bookmarkWordCard(word) {
+    return `<article class="quick-word-card bookmark-word-card">
+      <strong>${japaneseWithYomi(word.jp, word.reading)}</strong><span class="pronunciation">${displayPronunciation(word.reading)}</span><small>${escapeHtml(word.ko)}</small>
+      <div class="phrase-actions">
+        <button class="icon-action" data-action="speak-word" data-text="${escapeHtml(word.jp)}" aria-label="${escapeHtml(word.jp)} 듣기" title="일본어 듣기">${icons.listen}</button>
+        <button class="icon-action is-active" data-action="toggle-word-favorite" data-category="${escapeHtml(word.category)}" data-jp="${escapeHtml(word.jp)}" data-reading="${escapeHtml(word.reading)}" data-ko="${escapeHtml(word.ko)}" aria-label="${escapeHtml(word.jp)} 북마크 해제" title="북마크 해제">${icons.bookmark}</button>
+      </div>
+    </article>`;
+  }
+
+  function renderBookmarksByCategory(words, savedPhrases) {
+    const categories = [...Object.keys(categoryMeta), ...words.map(word => word.category), ...savedPhrases.map(bookmarkCategory)]
+      .filter((category, index, all) => all.indexOf(category) === index)
+      .filter(category => words.some(word => word.category === category) || savedPhrases.some(phrase => bookmarkCategory(phrase) === category));
+    if (!categories.length) return '<p class="profile-empty">아직 북마크한 단어·표현이 없어요.</p>';
+    return categories.map(category => {
+      const categoryWords = words.filter(word => word.category === category);
+      const categoryPhrases = savedPhrases.filter(phrase => bookmarkCategory(phrase) === category);
+      return `<section class="bookmark-category-group"><h2>${escapeHtml(category)}</h2>${categoryWords.length ? `<p class="bookmark-content-label">단어</p><div class="quick-word-grid bookmark-word-grid">${categoryWords.map(bookmarkWordCard).join('')}</div>` : ''}${categoryPhrases.length ? `<p class="bookmark-content-label">표현</p><div class="phrase-list bookmark-phrase-list">${categoryPhrases.map(phraseCard).join('')}</div>` : ''}</section>`;
+    }).join('');
+  }
+
   function saveState() {
     localStorage.setItem(storageKey('favorites'), JSON.stringify(state.favorites));
+    localStorage.setItem(storageKey('word-favorites'), JSON.stringify(state.wordFavorites));
     localStorage.setItem(storageKey('views'), JSON.stringify(state.views));
     localStorage.setItem(storageKey('recent-searches'), JSON.stringify(state.recentSearches));
     localStorage.setItem(storageKey('conversation-history'), JSON.stringify(state.conversationHistory));
@@ -344,7 +394,10 @@
   function quickWordPreview(category) {
     const words = quickWords[category] || [];
     if (!words.length) return '';
-    return `<section class="quick-word-preview"><div class="quick-word-preview-heading"><div><p class="eyebrow">QUICK WORDS</p><h2>이 상황에서 바로 쓰는 단어</h2></div><button data-action="open-quick-words" data-category="${category}">전체 보기 ›</button></div><div class="quick-word-preview-grid">${words.slice(0, 4).map(([japanese, reading, korean]) => `<article class="quick-word-preview-card"><strong>${japaneseWithYomi(japanese, reading)}</strong><span>${displayPronunciation(reading)}</span><small>${korean}</small><button class="icon-action" data-action="speak-word" data-text="${japanese}" aria-label="${japanese} 듣기" title="일본어 듣기">${icons.listen}</button></article>`).join('')}</div></section>`;
+    return `<section class="quick-word-preview"><div class="quick-word-preview-heading"><div><p class="eyebrow">QUICK WORDS</p><h2>이 상황에서 바로 쓰는 단어</h2></div><button data-action="open-quick-words" data-category="${category}">전체 보기 ›</button></div><div class="quick-word-preview-grid">${words.slice(0, 4).map(([japanese, reading, korean]) => {
+      const saved = isWordFavorite(category, japanese);
+      return `<article class="quick-word-preview-card"><strong>${japaneseWithYomi(japanese, reading)}</strong><span>${displayPronunciation(reading)}</span><small>${korean}</small><div class="quick-word-preview-actions"><button class="icon-action" data-action="speak-word" data-text="${japanese}" aria-label="${japanese} 듣기" title="일본어 듣기">${icons.listen}</button><button class="icon-action ${saved ? 'is-active' : ''}" data-action="toggle-word-favorite" data-category="${category}" data-jp="${japanese}" data-reading="${reading}" data-ko="${korean}" aria-label="${japanese} ${saved ? '북마크 해제' : '북마크'}" title="북마크">${icons.bookmark}</button></div></article>`;
+    }).join('')}</div></section>`;
   }
 
   function renderCategories() {
@@ -597,7 +650,7 @@
     const readiness = Math.min(100, Math.round((state.views.length / state.readinessGoal) * 100));
     $('#stat-views').textContent = state.views.length;
     $('#stat-audio').textContent = audioCount;
-    $('#stat-favorites').textContent = state.favorites.length;
+    $('#stat-favorites').textContent = state.favorites.length + state.wordFavorites.length;
     $('#progress-label').textContent = `${readiness}% 준비`;
     $('#readiness-message').textContent = state.views.length
       ? readiness >= 100 ? `목표 ${state.readinessGoal}개를 달성했어요. 출발 전 복습으로 기억을 다져 보세요.` : `목표 ${state.readinessGoal}개 중 ${state.views.length}개를 확인했어요. 조금만 더 준비해 볼까요?`
@@ -607,7 +660,8 @@
     $('.progress-track').setAttribute('aria-valuenow', String(readiness));
     $('#history-description').textContent = state.views.length ? `${state.views.length}개 표현` : '아직 확인한 표현이 없어요';
     $('#profile-custom-count').textContent = state.customPhrases.length ? `${state.customPhrases.length}개 표현` : '아직 추가한 표현이 없어요';
-    $('#profile-favorites-count').textContent = state.favorites.length ? `${state.favorites.length}개 표현` : '아직 북마크한 표현이 없어요';
+    const bookmarkCount = state.favorites.length + state.wordFavorites.length;
+    $('#profile-favorites-count').textContent = bookmarkCount ? `${bookmarkCount}개 저장됨` : '아직 북마크한 단어·표현이 없어요';
     $$('.pronunciation-options button').forEach(button => {
       const selected = button.dataset.style === state.pronunciationStyle;
       button.classList.toggle('active', selected);
@@ -625,20 +679,26 @@
       : phrases.filter(phrase => phrase.cat === type);
     const labels = {
       popular: ['QUICK ACCESS', '자주 쓰는 말'],
-      favorites: ['BOOKMARKS', '북마크한 표현'],
+      favorites: ['BOOKMARKS', '북마크한 단어·표현'],
       history: ['LEARNING LOG', '최근 확인'],
       custom: ['MY PHRASES', '내가 추가한 표현']
     };
     const [eyebrow, title] = labels[type] || ['SITUATION', type];
     $('#list-eyebrow').textContent = eyebrow;
     $('#list-title').textContent = title;
-    $('#list-description').textContent = list.length ? `${list.length}개의 표현을 준비했어요.` : type === 'history' ? '아직 확인한 표현이 없어요.' : type === 'custom' ? '사진이나 자막에서 표현을 가져와 보세요.' : '아직 북마크한 표현이 없어요.';
+    const bookmarkWords = type === 'favorites' ? state.wordFavorites.filter(word => state.bookmarkFilter === 'all' || word.category === state.bookmarkFilter) : [];
+    const bookmarkCount = list.length + bookmarkWords.length;
+    $('#list-description').textContent = type === 'favorites'
+      ? (bookmarkCount ? `${bookmarkCount}개의 단어와 표현을 저장했어요.` : '아직 북마크한 단어·표현이 없어요.')
+      : list.length ? `${list.length}개의 표현을 준비했어요.` : type === 'history' ? '아직 확인한 표현이 없어요.' : type === 'custom' ? '사진이나 자막에서 표현을 가져와 보세요.' : '아직 북마크한 표현이 없어요.';
     const isCategory = !labels[type];
     $('#quick-word-entry').innerHTML = type === 'favorites' ? `<div class="bookmark-filter">${['all', ...Object.keys(categoryMeta)].map(category => `<button class="${state.bookmarkFilter === category ? 'active' : ''}" data-action="set-bookmark-filter" data-category="${category}">${category === 'all' ? '전체' : category}</button>`).join('')}</div>` : isCategory ? quickWordPreview(type) : quickWords[type] ? `
       <button class="quick-word-entry" data-action="open-quick-words" data-category="${type}">
         <span>🔖</span><div><strong>바로 쓰는 필수 단어</strong><small>상황별 핵심 단어를 한눈에 확인해요</small></div><b>›</b>
       </button>` : '';
-    $('#phrase-list').innerHTML = isCategory && list.length
+    $('#phrase-list').innerHTML = type === 'favorites'
+      ? renderBookmarksByCategory(bookmarkWords, list)
+      : isCategory && list.length
       ? `<section class="featured-section"><p class="featured-label">대표 표현 · FEATURED</p>${phraseCard(list[0]).replace('phrase-card', 'phrase-card featured-card')}</section><p class="all-phrases-label">모든 표현</p>${list.slice(1).map(phrase => phraseCard(phrase)).join('')}`
       : list.map(phrase => phraseCard(phrase)).join('');
     record('category_open', { type });
@@ -651,14 +711,17 @@
     state.previousScreen = 'list';
     $('#quick-words-title').textContent = `${category} 필수 단어`;
     $('#quick-words-description').textContent = `${words.length}개 단어를 듣고 바로 사용할 수 있어요.`;
-    $('#quick-word-list').innerHTML = words.map(([jp, reading, ko]) => `
+    $('#quick-word-list').innerHTML = words.map(([jp, reading, ko]) => {
+      const saved = isWordFavorite(category, jp);
+      return `
       <article class="quick-word-card">
-        <strong>${jp}</strong><span class="pronunciation">${reading}</span><small>${ko}</small>
+        <strong>${japaneseWithYomi(jp, reading)}</strong><span class="pronunciation">${displayPronunciation(reading)}</span><small>${ko}</small>
         <div class="phrase-actions">
           <button class="icon-action" data-action="speak-word" data-text="${jp}" aria-label="${jp} 듣기" title="일본어 듣기">${icons.listen}</button>
-          <button class="icon-action" data-action="copy-word" data-text="${jp}" aria-label="${jp} 복사하기" title="일본어 복사하기">${icons.copy}</button>
+          <button class="icon-action ${saved ? 'is-active' : ''}" data-action="toggle-word-favorite" data-category="${category}" data-jp="${jp}" data-reading="${reading}" data-ko="${ko}" aria-label="${jp} ${saved ? '북마크 해제' : '북마크'}" title="북마크">${icons.bookmark}</button>
         </div>
-      </article>`).join('');
+      </article>`;
+    }).join('');
     record('quick_words_open', { category });
     navigate('quick-words', '');
   }
@@ -1428,6 +1491,15 @@
     if (action === 'speak-word') { event.stopPropagation(); flashIcon(target); speak(target.dataset.text); }
     if (action === 'copy-phrase') { event.stopPropagation(); const phrase = findPhrase(id); if (phrase) copyText(phrase.jp, { id: phrase.id }, target); }
     if (action === 'toggle-favorite') { event.stopPropagation(); const isAdding = toggleFavoriteId(id); target.classList.toggle('is-active', isAdding); target.setAttribute('aria-label', `${findPhrase(id)?.jp || '표현'} ${isAdding ? '북마크 해제' : '북마크'}`); }
+    if (action === 'toggle-word-favorite') {
+      event.stopPropagation();
+      const isAdding = toggleWordFavorite({ category, jp: target.dataset.jp, reading: target.dataset.reading, ko: target.dataset.ko });
+      target.classList.toggle('is-active', isAdding);
+      target.setAttribute('aria-label', `${target.dataset.jp} ${isAdding ? '북마크 해제' : '북마크'}`);
+      target.setAttribute('title', isAdding ? '북마크 해제' : '북마크');
+      if (!isAdding && $('.screen.active')?.id === 'list-screen' && $('#list-title').textContent === '북마크한 단어·표현') openList('favorites');
+      renderProfile();
+    }
     if (action === 'copy-word') { event.stopPropagation(); copyText(target.dataset.text, {}, target); }
     if (action === 'clear-recent-searches') clearRecentSearches();
     if (action === 'speak-ai') { flashIcon(target); speak(target.dataset.text); }
