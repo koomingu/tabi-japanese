@@ -45,6 +45,11 @@
     });
   }
 
+  const savedCustomPhrases = readList('custom-phrases').filter(phrase => phrase && phrase.id && phrase.jp && phrase.ko);
+  savedCustomPhrases.forEach(phrase => {
+    if (!phrases.some(item => item.id === phrase.id)) phrases.push(phrase);
+  });
+
   const state = {
     favorites: readList('favorites'),
     views: readList('views'),
@@ -69,8 +74,18 @@
     trip: readMap('trip'),
     rehearsalPhrase: null,
     rehearsalStage: 0,
-    rehearsalSpokenText: ''
+    rehearsalSpokenText: '',
+    customPhrases: savedCustomPhrases,
+    importCandidates: [],
+    importSource: null
   };
+
+  // 이전 버전은 가져온 표현을 자동으로 북마크에 넣었다. 한 번만 정리해 이후에는 사용자가 직접 북마크를 선택하게 한다.
+  if (!localStorage.getItem(storageKey('custom-bookmarks-separated'))) {
+    const customIds = new Set(savedCustomPhrases.map(phrase => phrase.id));
+    state.favorites = state.favorites.filter(id => !customIds.has(id));
+    localStorage.setItem(storageKey('custom-bookmarks-separated'), 'true');
+  }
 
   const conversationReplyGuide = [
     { situations: ['전체'], patterns: [/^(かしこまりました|畏まりました)$/], japanese: 'かしこまりました', pronunciation: '카시코마리마시타', korean: '알겠습니다. 요청을 정중하게 받아들였다는 뜻이에요.', keywords: ['매우 정중한 “알겠습니다”'], next: ['ありがとうございます。', 'はい、お願いします。'] },
@@ -238,6 +253,7 @@
     localStorage.setItem(storageKey('conversation-history'), JSON.stringify(state.conversationHistory));
     localStorage.setItem(storageKey('bookmark-categories'), JSON.stringify(state.bookmarkCategories));
     localStorage.setItem(storageKey('trip'), JSON.stringify(state.trip));
+    localStorage.setItem(storageKey('custom-phrases'), JSON.stringify(state.customPhrases));
   }
 
   function record(name, data = {}) {
@@ -263,6 +279,7 @@
     if (screen === 'home') renderTripHome();
     if (screen === 'trip-pack') renderTripPack();
     if (screen === 'travel-mode') renderTravelMode();
+    if (screen === 'import') renderImportCandidates();
     window.scrollTo(0, 0);
   }
 
@@ -474,7 +491,7 @@
       group.push(phrase);
       groups[phrase.cat] = group;
       return groups;
-    }, {})).map(([category, items]) => `<section class="trip-pack-group"><p class="eyebrow">${escapeHtml(category)}</p><h2>${escapeHtml(category)}에서 쓰는 말</h2>${items.map(phraseCard).join('')}</section>`).join('') : '<p class="profile-empty">여행 설정을 완료하면 말하기 팩이 만들어져요.</p>';
+    }, {})).map(([category, items]) => `<section class="trip-pack-group"><p class="eyebrow">${escapeHtml(category)}</p><h2>${escapeHtml(category)}에서 쓰는 말</h2>${items.map(phrase => phraseCard(phrase)).join('')}</section>`).join('') : '<p class="profile-empty">여행 설정을 완료하면 말하기 팩이 만들어져요.</p>';
     record('trip_pack_opened', { count: pack.length });
   }
 
@@ -589,6 +606,7 @@
     $('#progress-bar').style.width = `${readiness}%`;
     $('.progress-track').setAttribute('aria-valuenow', String(readiness));
     $('#history-description').textContent = state.views.length ? `${state.views.length}개 표현` : '아직 확인한 표현이 없어요';
+    $('#profile-custom-count').textContent = state.customPhrases.length ? `${state.customPhrases.length}개 표현` : '아직 추가한 표현이 없어요';
     $('#profile-favorites-count').textContent = state.favorites.length ? `${state.favorites.length}개 표현` : '아직 북마크한 표현이 없어요';
     $$('.pronunciation-options button').forEach(button => {
       const selected = button.dataset.style === state.pronunciationStyle;
@@ -603,24 +621,26 @@
     const list = type === 'popular' ? phrases.slice(0, 12)
       : type === 'favorites' ? phrases.filter(phrase => state.favorites.includes(phrase.id) && (state.bookmarkFilter === 'all' || bookmarkCategory(phrase) === state.bookmarkFilter))
       : type === 'history' ? state.views.map(findPhrase).filter(Boolean)
+      : type === 'custom' ? state.customPhrases.map(phrase => findPhrase(phrase.id)).filter(Boolean)
       : phrases.filter(phrase => phrase.cat === type);
     const labels = {
       popular: ['QUICK ACCESS', '자주 쓰는 말'],
       favorites: ['BOOKMARKS', '북마크한 표현'],
-      history: ['LEARNING LOG', '최근 확인']
+      history: ['LEARNING LOG', '최근 확인'],
+      custom: ['MY PHRASES', '내가 추가한 표현']
     };
     const [eyebrow, title] = labels[type] || ['SITUATION', type];
     $('#list-eyebrow').textContent = eyebrow;
     $('#list-title').textContent = title;
-    $('#list-description').textContent = list.length ? `${list.length}개의 표현을 준비했어요.` : type === 'history' ? '아직 확인한 표현이 없어요.' : '아직 북마크한 표현이 없어요.';
+    $('#list-description').textContent = list.length ? `${list.length}개의 표현을 준비했어요.` : type === 'history' ? '아직 확인한 표현이 없어요.' : type === 'custom' ? '사진이나 자막에서 표현을 가져와 보세요.' : '아직 북마크한 표현이 없어요.';
     const isCategory = !labels[type];
     $('#quick-word-entry').innerHTML = type === 'favorites' ? `<div class="bookmark-filter">${['all', ...Object.keys(categoryMeta)].map(category => `<button class="${state.bookmarkFilter === category ? 'active' : ''}" data-action="set-bookmark-filter" data-category="${category}">${category === 'all' ? '전체' : category}</button>`).join('')}</div>` : isCategory ? quickWordPreview(type) : quickWords[type] ? `
       <button class="quick-word-entry" data-action="open-quick-words" data-category="${type}">
         <span>🔖</span><div><strong>바로 쓰는 필수 단어</strong><small>상황별 핵심 단어를 한눈에 확인해요</small></div><b>›</b>
       </button>` : '';
     $('#phrase-list').innerHTML = isCategory && list.length
-      ? `<section class="featured-section"><p class="featured-label">대표 표현 · FEATURED</p>${phraseCard(list[0]).replace('phrase-card', 'phrase-card featured-card')}</section><p class="all-phrases-label">모든 표현</p>${list.slice(1).map(phraseCard).join('')}`
-      : list.map(phraseCard).join('');
+      ? `<section class="featured-section"><p class="featured-label">대표 표현 · FEATURED</p>${phraseCard(list[0]).replace('phrase-card', 'phrase-card featured-card')}</section><p class="all-phrases-label">모든 표현</p>${list.slice(1).map(phrase => phraseCard(phrase)).join('')}`
+      : list.map(phrase => phraseCard(phrase)).join('');
     record('category_open', { type });
     navigate('list', '');
   }
@@ -1267,6 +1287,106 @@
     }
   }
 
+  function makeCustomPhrase(candidate, source) {
+    const category = ['식당', '교통', '쇼핑', '숙소', '길 묻기', '관광지', '카페', '병원·약국'].includes(candidate.category) ? candidate.category : '기타';
+    return {
+      id: `custom-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      cat: category,
+      jp: String(candidate.japanese || '').trim(),
+      romaji: String(candidate.pronunciation || '').trim(),
+      ko: String(candidate.meaning || '').trim(),
+      use: String(candidate.usage || `${category} 상황에서 사용할 수 있어요.`).trim(),
+      note: '공유 콘텐츠에서 가져온 표현이에요. 사용 전 문맥을 확인해 보세요.',
+      source: source || null,
+      createdAt: new Date().toISOString()
+    };
+  }
+
+  function renderImportCandidates() {
+    const host = $('#import-results');
+    if (!state.importCandidates.length) { host.hidden = true; host.innerHTML = ''; return; }
+    host.hidden = false;
+    host.innerHTML = `<div class="import-results-heading"><p class="eyebrow">REVIEW & EDIT</p><h2>표현을 다듬어 저장하세요</h2><p>선택한 표현만 내 표현집에 추가돼요.</p></div><div class="import-candidate-list">${state.importCandidates.map((phrase, index) => `<article class="import-candidate"><div class="import-candidate-head"><span>표현 ${String(index + 1).padStart(2, '0')}</span><label class="import-select"><input type="checkbox" data-import-select="${index}" aria-label="표현 ${index + 1} 저장" checked /></label></div><div class="import-fields"><label class="import-field import-field-wide"><span>일본어</span><input data-import-field="japanese" data-import-index="${index}" value="${escapeHtml(phrase.japanese || '')}" /></label><label class="import-field"><span>한글 발음 <i>선택</i></span><input data-import-field="pronunciation" data-import-index="${index}" placeholder="예: 오하요 고자이마스" value="${escapeHtml(phrase.pronunciation || '')}" /></label><label class="import-field"><span>한국어 뜻 <i class="required">필수</i></span><input data-import-field="meaning" data-import-index="${index}" placeholder="예: 안녕하세요" value="${escapeHtml(phrase.meaning || '')}" /></label><label class="import-field import-field-wide"><span>사용 상황 <i>선택</i></span><input data-import-field="usage" data-import-index="${index}" placeholder="예: 가게에 들어갈 때" value="${escapeHtml(phrase.usage || '')}" /></label></div></article>`).join('')}</div><button class="trip-primary import-save-button" type="button" data-action="save-imported-phrases">선택한 표현 저장하기 <span>›</span></button>`;
+  }
+
+  function saveImportedPhrases() {
+    const selected = $$('[data-import-select]:checked').map(input => Number(input.dataset.importSelect));
+    if (!selected.length) return showToast('저장할 표현을 하나 이상 골라 주세요.');
+    if (selected.some(index => !String(state.importCandidates[index]?.meaning || '').trim())) return showToast('선택한 표현의 한국어 뜻을 입력해 주세요.');
+    const newPhrases = selected.map(index => makeCustomPhrase(state.importCandidates[index], state.importSource)).filter(phrase => phrase.jp && phrase.ko);
+    // 기본 탑재 표현과 같아도 사용자가 직접 가져온 기록은 내 표현집에 남긴다.
+    // 이미 가져온 같은 표현은 막지 않고, 방금 입력한 발음·뜻으로 갱신한다.
+    const seen = new Set();
+    const added = [];
+    let updated = 0;
+    newPhrases.forEach(phrase => {
+      const key = `${phrase.jp}\u0000${phrase.ko}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      const existingIndex = state.customPhrases.findIndex(item => item.jp === phrase.jp && item.ko === phrase.ko);
+      if (existingIndex === -1) {
+        added.push(phrase);
+        return;
+      }
+      const existing = state.customPhrases[existingIndex];
+      const refreshed = { ...existing, ...phrase, id: existing.id, createdAt: existing.createdAt };
+      state.customPhrases[existingIndex] = refreshed;
+      const phraseIndex = phrases.findIndex(item => item.id === existing.id);
+      if (phraseIndex !== -1) phrases[phraseIndex] = refreshed;
+      updated += 1;
+    });
+    state.customPhrases.push(...added);
+    phrases.push(...added);
+    saveState();
+    record('phrase_import_saved', { count: added.length, updated, source: state.importSource?.type || 'unknown' });
+    state.importCandidates = [];
+    $('#import-form').reset();
+    $('#import-file-name').textContent = 'PNG, JPG, WEBP · 최대 5MB';
+    renderImportCandidates();
+    showToast(added.length ? `${added.length}개 표현을 내 표현집에 저장했어요.` : `${updated}개 표현을 최신 내용으로 저장했어요.`);
+    openList('custom');
+  }
+
+  function extractLocalImportCandidates(text) {
+    const cleaned = String(text || '').replace(/#[^\s#]+/g, ' ').replace(/https?:\/\/\S+/g, ' ');
+    const structured = cleaned.split(/\r?\n/).map(line => {
+      const match = line.trim().match(/^[*\-•\s]*([ぁ-んァ-ヶー一-龯々〆ヵヶ][ぁ-んァ-ヶー一-龯々〆ヵヶ\s、。！？!?…「」]+?)\s*[（(]\s*([^()（）:：]+?)\s*[）)]\s*[:：]\s*(.+?)\s*$/);
+      if (!match) return null;
+      return { japanese: match[1].trim(), pronunciation: match[2].trim(), meaning: match[3].replace(/\*+/g, '').trim(), category: '기타', usage: '' };
+    }).filter(Boolean);
+    if (structured.length) return [...new Map(structured.map(phrase => [phrase.japanese, phrase])).values()].slice(0, 8);
+    const candidates = cleaned.match(/[ぁ-んァ-ヶー一-龯々〆ヵヶ][ぁ-んァ-ヶー一-龯々〆ヵヶ\s、。！？!?…「」]*/g) || [];
+    return [...new Set(candidates.map(value => value.replace(/\s+/g, ' ').trim()).filter(value => (value.match(/[ぁ-んァ-ヶー一-龯々〆ヵヶ]/g) || []).length >= 2))]
+      .slice(0, 8)
+      .map(japanese => ({ japanese, pronunciation: '', meaning: '', category: '기타', usage: '' }));
+  }
+
+  async function importPhrases(event) {
+    event.preventDefault();
+    const file = $('#import-image').files[0];
+    const url = $('#import-url').value.trim();
+    const sourceText = $('#import-text').value.trim();
+    if (!file && !url && !sourceText) return showToast('사진, 링크, 또는 자막 텍스트를 입력해 주세요.');
+    if (file && file.size > 5 * 1024 * 1024) return showToast('이미지는 5MB 이하로 올려 주세요.');
+    if (url && !/^https:\/\//i.test(url)) return showToast('https로 시작하는 공개 링크만 사용할 수 있어요.');
+    if (!sourceText) return showToast(file ? '사진의 일본어 자막을 텍스트로 붙여넣어 주세요.' : '링크의 일본어 캡션을 붙여넣어 주세요.');
+    const submit = $('#import-form button[type="submit"]');
+    submit.disabled = true;
+    submit.textContent = '표현을 고르고 있어요…';
+    try {
+      state.importCandidates = extractLocalImportCandidates(sourceText);
+      state.importSource = { type: file ? 'image' : url ? 'url' : 'text', url: url || null };
+      if (!state.importCandidates.length) throw new Error('저장할 일본어 표현을 찾지 못했어요.');
+      renderImportCandidates();
+      record('phrase_import_analyzed', { count: state.importCandidates.length, source: state.importSource.type });
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : '표현 추출에 실패했어요.');
+    } finally {
+      submit.disabled = false;
+      submit.textContent = '표현 후보 만들기';
+    }
+  }
+
   function copyPhrase(button) {
     const phrase = state.activePhrase;
     if (phrase) copyText(phrase.jp, { id: phrase.id }, button);
@@ -1298,6 +1418,8 @@
     if (action === 'open-trip-pack') { state.previousScreen = $('.screen.active').id.replace('-screen', ''); navigate('trip-pack', ''); }
     if (action === 'open-travel-mode') { state.previousScreen = 'trip-pack'; navigate('travel-mode', ''); }
     if (action === 'open-conversation') { state.previousScreen = 'travel-mode'; navigate('conversation'); }
+    if (action === 'open-import') { state.previousScreen = $('.screen.active').id.replace('-screen', ''); navigate('import', ''); }
+    if (action === 'save-imported-phrases') saveImportedPhrases();
     if (action === 'open-category') openList(category);
     if (action === 'open-profile-list') openList(target.dataset.list);
     if (action === 'open-quick-words') openQuickWords(category);
@@ -1374,6 +1496,17 @@
       renderConversationPicker();
     });
     $('#trip-form').addEventListener('submit', saveTrip);
+    $('#import-form').addEventListener('submit', importPhrases);
+    $('#import-image').addEventListener('change', event => {
+      const file = event.target.files[0];
+      $('#import-file-name').textContent = file ? `${file.name} · ${(file.size / 1024 / 1024).toFixed(1)}MB` : 'PNG, JPG, WEBP · 최대 5MB';
+    });
+    document.addEventListener('input', event => {
+      const input = event.target.closest('[data-import-field]');
+      if (!input) return;
+      const candidate = state.importCandidates[Number(input.dataset.importIndex)];
+      if (candidate) candidate[input.dataset.importField] = input.value;
+    });
     $('#trip-duration').addEventListener('change', renderItineraryBuilder);
     $('#trip-date').addEventListener('change', renderItineraryBuilder);
     $('#global-search').addEventListener('focus', event => { state.searchActive = true; renderSearch(event.target.value); });

@@ -26,8 +26,23 @@
           <div class="search-suggestions" id="search-suggestions" hidden></div>
           <div id="search-results" class="search-results"></div>
           <div class="ask-answer" id="ask-answer"></div>
+          <button class="import-entry" data-action="open-import"><span>＋</span><span><strong>사진·릴스에서 표현 가져오기</strong><small>스크린샷이나 공개 링크에서 일본어 표현을 찾아요</small></span><b>›</b></button>
         </div>
         <div class="trip-home" id="trip-home"></div>
+      </section>
+
+      <section class="screen" id="import-screen">
+        <button class="back-button" data-back>‹ <span>홈</span></button>
+        <div class="list-header"><p class="eyebrow">PHRASE IMPORT</p><h1>표현 가져오기</h1><p>스크린샷이나 공개 게시물 링크에서 여행 일본어를 찾아 내 표현집에 저장하세요.</p></div>
+        <ol class="import-steps" aria-label="표현 가져오기 순서"><li><b>1</b><span>원본 추가</span></li><li><b>2</b><span>자막 붙여넣기</span></li><li><b>3</b><span>표현 저장</span></li></ol>
+        <form class="import-form" id="import-form">
+          <label class="import-file-label"><input id="import-image" type="file" accept="image/png,image/jpeg,image/webp" /><span class="import-file-icon">▧</span><span><strong>스크린샷 추가</strong><small id="import-file-name">선택 사항 · PNG, JPG, WEBP · 최대 5MB</small></span><b>파일 선택</b></label>
+          <label>공개 게시물 링크 <small>선택</small><input id="import-url" type="url" inputmode="url" placeholder="https://www.instagram.com/reel/..." /></label>
+          <label>캡션 또는 자막 텍스트 <small>예: こんにちは (콘니치와): 안녕하세요</small><textarea id="import-text" rows="4" maxlength="3000" placeholder="사진에서 보이는 일본어 자막이나 게시물 캡션을 붙여넣으세요."></textarea></label>
+          <p class="import-notice"><b>AI 연결 없이 동작해요.</b> 일본어 자막·캡션을 붙여넣으면 후보를 만들고, 뜻과 발음은 다음 단계에서 다듬을 수 있어요.</p>
+          <button class="trip-primary" type="submit">표현 후보 만들기</button>
+        </form>
+        <section class="import-results" id="import-results" hidden aria-live="polite"></section>
       </section>
 
       <section class="screen" id="trip-setup-screen">
@@ -137,7 +152,7 @@
           <div class="progress-grid" aria-label="학습 통계"><div><strong id="stat-views">0</strong><small>확인한 표현</small></div><div><strong id="stat-audio">0</strong><small>음성 듣기</small></div><div><strong id="stat-favorites">0</strong><small>북마크</small></div></div>
           <button class="review-card" id="review-button"><span>↻</span><div><strong>1분 빠른 복습</strong><small>저장하거나 확인한 표현을 바로 복습해요</small></div><b aria-hidden="true">›</b></button>
         </section>
-        <section class="profile-section profile-library" aria-labelledby="library-title"><div class="profile-section-title"><div><p class="eyebrow">MY LIBRARY</p><h2 id="library-title">학습 기록</h2></div></div><div class="profile-link-list"><button class="profile-link" data-action="open-profile-list" data-list="history"><span class="profile-link-icon">◷</span><span><strong>최근 확인</strong><small id="history-description"></small></span><b aria-hidden="true">›</b></button><button class="profile-link" data-action="open-profile-list" data-list="favorites"><span class="profile-link-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.75A1.75 1.75 0 0 1 7.75 2h8.5A1.75 1.75 0 0 1 18 3.75V22l-6-3.75L6 22V3.75Z" /></svg></span><span><strong>북마크한 표현</strong><small id="profile-favorites-count"></small></span><b aria-hidden="true">›</b></button></div></section>
+        <section class="profile-section profile-library" aria-labelledby="library-title"><div class="profile-section-title"><div><p class="eyebrow">MY LIBRARY</p><h2 id="library-title">학습 기록</h2></div></div><div class="profile-link-list"><button class="profile-link" data-action="open-profile-list" data-list="history"><span class="profile-link-icon">◷</span><span><strong>최근 확인</strong><small id="history-description"></small></span><b aria-hidden="true">›</b></button><button class="profile-link" data-action="open-profile-list" data-list="custom"><span class="profile-link-icon">＋</span><span><strong>내가 추가한 표현</strong><small id="profile-custom-count"></small></span><b aria-hidden="true">›</b></button><button class="profile-link" data-action="open-profile-list" data-list="favorites"><span class="profile-link-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.75A1.75 1.75 0 0 1 7.75 2h8.5A1.75 1.75 0 0 0 18 3.75V22l-6-3.75L6 22V3.75Z" /></svg></span><span><strong>북마크한 표현</strong><small id="profile-favorites-count"></small></span><b aria-hidden="true">›</b></button></div></section>
         <section class="profile-section pronunciation-setting" aria-labelledby="pronunciation-title"><div class="profile-section-title"><div><p class="eyebrow">DISPLAY</p><h2 id="pronunciation-title">발음 표기</h2></div></div><p>여행 중 가장 빠르게 읽히는 방식을 선택하세요.</p><div class="pronunciation-options" role="radiogroup" aria-label="발음 표기 방식"><button data-action="set-pronunciation-style" data-style="hangul" role="radio"><strong>한글형</strong><small>오미즈오 쿠다사이</small></button><button data-action="set-pronunciation-style" data-style="roman" role="radio"><strong>로마자형</strong><small>omizu o kudasai</small></button></div></section>
       </section>
 
